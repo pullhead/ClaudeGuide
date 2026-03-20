@@ -1,0 +1,173 @@
+# MCPサーバー統合
+
+[Everything Claude Code - MCP Servers](https://github.com/affaan-m/everything-claude-code)
+
+Model Context Protocol（MCP）サーバーを設定して、Claude Codeの機能を外部サービスと連携させる方法を解説します。
+
+## MCPとは
+
+MCP（Model Context Protocol）は、AIエージェントが外部ツールやサービスにアクセスするための標準プロトコルです。MCPサーバーを設定することで、Claude CodeからGitHub、Supabase、Vercelなどのサービスを直接操作できるようになります。
+
+## MCPサーバーの設定
+
+設定ファイルは2つの場所に配置できます：
+
+- **グローバル設定**: `~/.claude.json`
+- **プロジェクト設定**: `.claude/mcp.json`
+
+### 基本的な設定例
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_TOKEN"
+      }
+    },
+    "supabase": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-supabase"],
+      "env": {
+        "SUPABASE_URL": "YOUR_URL",
+        "SUPABASE_KEY": "YOUR_KEY"
+      }
+    },
+    "vercel": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-vercel"],
+      "env": {
+        "VERCEL_AUTH_TOKEN": "YOUR_TOKEN"
+      }
+    }
+  }
+}
+```
+
+## よく使うMCPサーバー
+
+### GitHub
+
+リポジトリ、Issue、PRの操作が可能です：
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_xxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+### Supabase
+
+データベース操作、認証管理、ストレージアクセスが可能です：
+
+```json
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-supabase"],
+      "env": {
+        "SUPABASE_URL": "https://xxxxx.supabase.co",
+        "SUPABASE_KEY": "eyJxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+### Vercel
+
+デプロイメント管理、プロジェクト設定が可能です：
+
+```json
+{
+  "mcpServers": {
+    "vercel": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-vercel"],
+      "env": {
+        "VERCEL_AUTH_TOKEN": "xxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+## CLAUDE.mdでのMCP設定
+
+プロジェクトのCLAUDE.mdでMCPサーバーの有効/無効を制御できます：
+
+```markdown
+## MCP Servers
+
+[[mcp_servers]]
+name = "supabase"
+enabled = true
+
+[[mcp_servers]]
+name = "vercel"
+enabled = false
+```
+
+## MCPのパフォーマンス最適化
+
+### コンテキストウィンドウへの影響
+
+各MCPサーバーのツール説明はトークンを消費します。MCPを多数有効にすると、利用可能なコンテキストウィンドウが大幅に縮小します。
+
+**具体例:**
+- MCPなし: 約200kトークンが利用可能
+- MCPを多数有効化: 約70kトークンまで縮小
+
+### 最適化のガイドライン
+
+1. **有効なMCPは10個以下に抑える**
+2. **アクティブなツールは80個以下に維持**
+3. **使わないMCPは無効化する**
+
+### 未使用MCPの無効化
+
+```json
+{
+  "disabledMcpServers": ["supabase", "railway", "vercel"]
+}
+```
+
+プロジェクトごとに必要なMCPだけを有効にすることで、コンテキストウィンドウを最大限活用できます。
+
+## MCPサーバーのトラブルシューティング
+
+### コンテキストが狭くなる
+
+多くのMCPを有効にしている場合、使用していないMCPを `disabledMcpServers` に追加してください。
+
+### MCPサーバーが起動しない
+
+1. `npx` がインストールされているか確認
+2. 環境変数（APIキー・トークン）が正しいか確認
+3. MCPサーバーパッケージのバージョンを確認
+
+### 認証エラー
+
+各MCPサーバーの認証情報が有効であることを確認します。トークンの期限切れやスコープ不足が原因となることがあります。
+
+## セキュリティ上の注意
+
+- APIキーやトークンは `~/.claude.json` に保存され、Gitリポジトリには含まれません
+- プロジェクト設定 `.claude/mcp.json` に認証情報を直接書く場合は、`.gitignore` に追加してください
+- AgentShieldの `/security-scan` でMCPサーバーのリスクプロファイリングが可能です
+
+```bash
+# MCPサーバーの安全性をスキャン
+npx ecc-agentshield scan
+```

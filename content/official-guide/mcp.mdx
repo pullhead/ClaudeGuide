@@ -1,0 +1,186 @@
+# MCP
+
+[MCP Connector](https://docs.anthropic.com/en/docs/build-with-claude/mcp)
+
+## 概要
+
+MCP（Model Context Protocol）コネクタは、Messages APIからリモートMCPサーバーに直接接続する機能。別途MCPクライアントを実装する必要がなく、APIリクエスト内でMCPツールを利用できる。
+
+現在のバージョン: `mcp-client-2025-11-20`（ベータヘッダー必要）
+
+## 主な特徴
+
+- **直接API統合** -- MCPクライアントの実装不要
+- **ツール呼び出し対応** -- MCPツールをMessages API経由で利用
+- **柔軟なツール設定** -- 全ツール有効化、許可リスト、拒否リスト
+- **OAuth認証** -- 認証付きMCPサーバー対応
+- **複数サーバー** -- 1リクエストで複数のMCPサーバーに接続可能
+
+## 制限事項
+
+- MCPスペックのうち、現在は**ツール呼び出し**のみ対応
+- HTTP（Streamable HTTP / SSE）で公開されたサーバーが必要。ローカルSTDIOサーバーは不可
+- Amazon Bedrock / Google Vertex AI では未対応
+
+## 基本的な使い方
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.beta.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1000,
+    messages=[{"role": "user", "content": "利用可能なツールは何ですか？"}],
+    mcp_servers=[
+        {
+            "type": "url",
+            "url": "https://example-server.modelcontextprotocol.io/sse",
+            "name": "example-mcp",
+            "authorization_token": "YOUR_TOKEN",
+        }
+    ],
+    tools=[{"type": "mcp_toolset", "mcp_server_name": "example-mcp"}],
+    betas=["mcp-client-2025-11-20"],
+)
+```
+
+## MCPサーバー定義
+
+`mcp_servers` 配列で接続先を定義する。
+
+```json
+{
+  "type": "url",
+  "url": "https://example-server.modelcontextprotocol.io/sse",
+  "name": "example-mcp",
+  "authorization_token": "YOUR_TOKEN"
+}
+```
+
+| プロパティ | 必須 | 説明 |
+|:----------|:-----|:-----|
+| `type` | Yes | 現在は `"url"` のみ |
+| `url` | Yes | MCPサーバーのURL（https://必須） |
+| `name` | Yes | サーバーの一意識別子 |
+| `authorization_token` | No | OAuth認証トークン |
+
+## MCPツールセット設定
+
+`tools` 配列内で、どのツールを有効にするかを制御する。
+
+### 全ツール有効化（デフォルト）
+
+```json
+{"type": "mcp_toolset", "mcp_server_name": "example-mcp"}
+```
+
+### 許可リスト（特定ツールのみ有効）
+
+```json
+{
+  "type": "mcp_toolset",
+  "mcp_server_name": "example-mcp",
+  "default_config": {"enabled": false},
+  "configs": {
+    "search_events": {"enabled": true},
+    "create_event": {"enabled": true}
+  }
+}
+```
+
+### 拒否リスト（特定ツールを無効化）
+
+```json
+{
+  "type": "mcp_toolset",
+  "mcp_server_name": "example-mcp",
+  "configs": {
+    "delete_all_events": {"enabled": false}
+  }
+}
+```
+
+## ツール設定オプション
+
+| プロパティ | デフォルト | 説明 |
+|:----------|:---------|:-----|
+| `enabled` | `true` | ツールの有効/無効 |
+| `defer_loading` | `false` | trueの場合、ツール説明をモデルに初期送信しない |
+
+設定の優先順位: ツール固有設定 > `default_config` > システムデフォルト
+
+## 複数サーバーの接続
+
+```python
+response = client.beta.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1000,
+    messages=[{"role": "user", "content": "両方のサーバーのツールを使ってください"}],
+    mcp_servers=[
+        {"type": "url", "url": "https://server1.example.com/sse", "name": "server-1"},
+        {"type": "url", "url": "https://server2.example.com/sse", "name": "server-2"},
+    ],
+    tools=[
+        {"type": "mcp_toolset", "mcp_server_name": "server-1"},
+        {"type": "mcp_toolset", "mcp_server_name": "server-2", "default_config": {"defer_loading": True}},
+    ],
+    betas=["mcp-client-2025-11-20"],
+)
+```
+
+## レスポンスのブロックタイプ
+
+### MCP Tool Use
+
+```json
+{
+  "type": "mcp_tool_use",
+  "id": "mcptoolu_014Q35...",
+  "name": "echo",
+  "server_name": "example-mcp",
+  "input": {"param1": "value1"}
+}
+```
+
+### MCP Tool Result
+
+```json
+{
+  "type": "mcp_tool_result",
+  "tool_use_id": "mcptoolu_014Q35...",
+  "is_error": false,
+  "content": [{"type": "text", "text": "Hello"}]
+}
+```
+
+## OAuth認証
+
+MCPサーバーがOAuth認証を必要とする場合:
+
+1. MCP Inspector (`npx @modelcontextprotocol/inspector`) でアクセストークンを取得
+2. トークンを `authorization_token` フィールドに設定
+3. トークンの更新はAPI呼び出し側で管理する
+
+## TypeScript SDK のヘルパー
+
+ローカルSTDIOサーバーやMCPプロンプト/リソースを扱う場合は、SDKのヘルパー関数が利用可能。
+
+```typescript
+import { mcpTools, mcpMessages, mcpResourceToContent } from "@anthropic-ai/sdk/helpers/beta/mcp";
+
+const { tools } = await mcpClient.listTools();
+const runner = await anthropic.beta.messages.toolRunner({
+  model: "claude-sonnet-4-6",
+  max_tokens: 1024,
+  messages: [{ role: "user", content: "..." }],
+  tools: mcpTools(tools, mcpClient)
+});
+```
+
+## バリデーションルール
+
+- `mcp_server_name` は `mcp_servers` 内の定義と一致する必要がある
+- 全てのMCPサーバーは1つのMCPToolsetから参照される必要がある
+- 各サーバーは1つのMCPToolsetからのみ参照可能

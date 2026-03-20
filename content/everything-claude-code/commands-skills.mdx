@@ -1,0 +1,185 @@
+# コマンド・スキル定義
+
+[Everything Claude Code - Commands & Skills](https://github.com/affaan-m/everything-claude-code)
+
+Claude Codeのスラッシュコマンドとカスタムスキルを活用して、効率的な開発ワークフローを構築する方法を解説します。
+
+## スラッシュコマンドとは
+
+スラッシュコマンドは、Claude Codeの対話モード内で `/コマンド名` の形式で実行する組み込み機能です。Everything Claude Code（ECC）を導入すると、57以上のコマンドが利用可能になります。
+
+## 主要コマンド一覧
+
+### 計画・設計
+
+```bash
+/plan "ユーザー認証を追加"       # 実装計画を作成
+/multi-plan "決済システム実装"    # マルチエージェントで計画を分解
+```
+
+### テスト・品質
+
+```bash
+/tdd                              # テスト駆動開発を強制
+/code-review                      # コードレビューを実行
+/security-scan                    # AgentShieldによるセキュリティ監査
+/verify                           # ビルド・テスト・リント・型チェックを一括実行
+/quality-gate                     # 品質ゲートチェック
+/test-coverage                    # テストカバレッジ分析（80%以上必須）
+```
+
+### ビルド・デバッグ
+
+```bash
+/build-fix                        # ビルドエラーを自動修正
+/e2e                              # E2Eテストを生成（Playwright）
+/refactor-clean                   # デッドコードを除去
+```
+
+### ドキュメント・学習
+
+```bash
+/update-docs                      # ドキュメントを同期
+/instinct-status                  # 学習したインスティンクトを表示
+/instinct-import <file>           # インスティンクトをインポート
+/instinct-export                  # インスティンクトをエクスポート
+/evolve                           # インスティンクトをスキルに進化
+```
+
+### マルチエージェント
+
+```bash
+/multi-execute                    # 並列エージェント実行
+/multi-backend                    # バックエンド向けオーケストレーション
+/multi-frontend                   # フロントエンド向けオーケストレーション
+```
+
+### 言語固有レビュー
+
+```bash
+/go-review                        # Go専用コードレビュー
+/python-review                    # Python専用コードレビュー
+```
+
+### セッション・コスト管理
+
+```bash
+/sessions                         # セッション履歴管理
+/checkpoint                       # 検証状態を保存
+/model sonnet                     # モデル切り替え
+/cost                             # コスト確認
+/clear                            # コンテキストクリア
+/compact                          # コンテキスト圧縮
+```
+
+### ユーティリティ
+
+```bash
+/setup-pm                         # パッケージマネージャー設定
+/pm2                              # PM2サービス管理
+/harness-audit                    # ハーネス信頼性監査
+/loop-start                       # エージェントループ開始
+/model-route                      # 複雑さに応じたモデルルーティング
+/skill-create                     # Git履歴からスキルを生成
+```
+
+## スキルとは
+
+スキルはドメイン固有のワークフロー定義です。コマンドよりも詳細で、特定のタスクパターンに対する手順・ルール・ベストプラクティスを体系化したものです。ECCには108のスキルが含まれています。
+
+## スキルのカテゴリ
+
+### コーディング標準
+
+各言語のコーディング標準スキル：
+
+- `typescript` — TypeScript標準
+- `python` — Python標準
+- `golang` — Go標準
+- `swift` — Swift標準
+- `php` — PHP標準
+- `perl`, `cpp`, `java` — その他言語
+
+### フレームワークパターン
+
+```bash
+django-patterns          # Django固有パターン
+laravel-patterns         # Laravel固有パターン
+springboot-patterns      # Spring Boot固有パターン
+backend-patterns         # バックエンド共通パターン
+frontend-patterns        # フロントエンド共通パターン
+api-design               # API設計パターン
+golang-patterns          # Go固有パターン
+golang-testing           # Goテストパターン
+```
+
+### セキュリティ・テスト
+
+```bash
+security-review          # セキュリティレビュー
+tdd-workflow             # TDDワークフロー
+e2e-testing              # E2Eテスト
+verification-loop        # 検証ループ
+django-security          # Djangoセキュリティ
+laravel-security         # Laravelセキュリティ
+springboot-security      # Spring Bootセキュリティ
+```
+
+### 高度なスキル
+
+```bash
+continuous-learning-v2   # 継続学習システム
+iterative-retrieval      # 反復的コンテキスト取得
+strategic-compact        # 戦略的コンパクション
+autonomous-loops         # 自律ループパターン
+cost-aware-llm-pipeline  # コスト考慮パイプライン
+content-hash-cache-pattern  # コンテンツハッシュキャッシュ
+```
+
+### データベース・DevOps
+
+```bash
+clickhouse-io            # ClickHouse操作
+postgres-patterns        # PostgreSQLパターン
+database-migrations      # DBマイグレーション
+docker-patterns          # Dockerパターン
+deployment-patterns      # デプロイメントパターン
+```
+
+## カスタムスキルの作成
+
+自分のスキルを作成して `~/.claude/skills/` に配置できます：
+
+```bash
+/skill-create                    # 現在のリポジトリから分析して生成
+/skill-create --instincts        # インスティンクトコレクションを生成
+```
+
+スキルファイルは `SKILL.md` という名前で、特定のフォーマットに従って記述します。Git履歴からパターンを自動抽出して生成することも可能です。
+
+## 継続学習システム
+
+ECCの特徴的な機能として、セッションから自動的にパターンを学習する仕組みがあります：
+
+```bash
+# インスティンクト（直感的パターン）の確認
+/instinct-status
+
+# チームメンバーからインスティンクトをインポート
+/instinct-import patterns-2025-jan.md
+
+# 自分のインスティンクトをエクスポート
+/instinct-export
+
+# 関連するインスティンクトをスキルにクラスタリング
+/evolve
+```
+
+### 学習の仕組み
+
+1. 各セッションで有効だったパターンを評価
+2. パターンに信頼度スコア（有効性の一貫性）を付与
+3. 類似するインスティンクトを自動的にクラスタリング
+4. クラスタがスキルとして成熟し、再利用可能になる
+
+この仕組みにより、使えば使うほどClaude Codeのパフォーマンスが向上します。

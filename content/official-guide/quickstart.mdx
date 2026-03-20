@@ -1,0 +1,128 @@
+# クイックスタート
+
+[Initial Setup](https://docs.anthropic.com/en/docs/initial-setup)
+
+## 前提条件
+
+- Anthropic Consoleのアカウント
+- APIキー（Console の Settings > Keys から取得）
+
+## セットアップ手順
+
+### 1. APIキーを環境変数に設定
+
+```bash
+export ANTHROPIC_API_KEY='your-api-key-here'
+```
+
+### 2. SDKのインストール
+
+**Python:**
+```bash
+pip install anthropic
+```
+
+**TypeScript:**
+```bash
+npm install @anthropic-ai/sdk
+```
+
+**Java (Gradle):**
+```groovy
+implementation("com.anthropic:anthropic-java:2.18.0")
+```
+
+## 最初のAPI呼び出し
+
+### Python
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": "日本の四季について教えてください。",
+        }
+    ],
+)
+print(message.content)
+```
+
+### TypeScript
+
+```typescript
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+
+const message = await client.messages.create({
+  model: "claude-sonnet-4-6",
+  max_tokens: 1024,
+  messages: [
+    {
+      role: "user",
+      content: "日本の四季について教えてください。"
+    }
+  ]
+});
+console.log(message);
+```
+
+### cURL
+
+```bash
+curl https://api.anthropic.com/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "role": "user",
+        "content": "日本の四季について教えてください。"
+      }
+    ]
+  }'
+```
+
+## レスポンスの構造
+
+```json
+{
+  "id": "msg_01HCDu5LRGeP2o7s2xGmxyx8",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "日本の四季は..."
+    }
+  ],
+  "model": "claude-sonnet-4-6",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 21,
+    "output_tokens": 305
+  }
+}
+```
+
+## 重要なポイント
+
+- `ANTHROPIC_API_KEY` 環境変数を設定すれば、SDKが自動的に読み取る
+- `model` にはモデルIDを指定（例: `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5`）
+- `max_tokens` は出力の最大トークン数（必須パラメータ）
+- `stop_reason` が `end_turn` なら正常終了、`max_tokens` ならトークン上限に到達
+
+## 次のステップ
+
+- [Messages API](/official-guide/messages-api) -- APIの詳細なパラメータとパターン
+- [モデル概要](/official-guide/models) -- モデルの比較と選択ガイド

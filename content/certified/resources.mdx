@@ -1,0 +1,66 @@
+# 学習リソース & スケジュール
+
+## 公式リソース
+
+### Anthropic公式
+- [Anthropic Documentation](https://docs.anthropic.com/) — API リファレンス、ガイド
+- [Anthropic Cookbook](https://github.com/anthropics/anthropic-cookbook) — 実装例集
+- [Model Context Protocol](https://modelcontextprotocol.io/) — MCP仕様
+- [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code) — Claude Code公式ドキュメント
+
+### 認定試験関連
+- [CCA Foundations 試験ページ](https://www.anthropic.com/certification) — 試験登録・詳細
+- [Exam Study Guide](https://docs.anthropic.com/en/docs/certification) — 公式スタディガイド
+
+## 推奨学習スケジュール（6〜7週間）
+
+### Week 1-2: 基礎固め
+- [ ] Anthropic公式ドキュメントを通読
+- [ ] Messages API の基本を理解
+- [ ] プロンプト技法を実際に試す（Few-shot, CoT, XMLタグ）
+- [ ] **対応ドメイン**: D4（プロンプト & 構造化出力）
+
+### Week 3: ツール設計 & MCP
+- [ ] MCP仕様を理解（Tools, Resources, Prompts）
+- [ ] MCPサーバーを1つ構築してみる
+- [ ] ツールスキーマ設計を練習
+- [ ] **対応ドメイン**: D2（ツール設計 & MCP）
+
+### Week 4: エージェント設計
+- [ ] Agent SDKを触ってみる
+- [ ] 3つのアーキテクチャパターンを比較
+- [ ] stop_reasonの動作を確認
+- [ ] **対応ドメイン**: D1（エージェント設計 & オーケストレーション）
+
+### Week 5: Claude Code
+- [ ] Claude Codeをインストール・設定
+- [ ] CLAUDE.mdを書いてみる
+- [ ] Hooksを設定してみる
+- [ ] CI/CD連携（`-p` フラグ）を試す
+- [ ] **対応ドメイン**: D3（Claude Code）
+
+### Week 6: コンテキスト管理 & 信頼性
+- [ ] RAGパターンを実装
+- [ ] Prompt Caching, Batch APIを試す
+- [ ] エスカレーションフローを設計
+- [ ] **対応ドメイン**: D5（コンテキスト管理 & 信頼性）
+
+### Week 7: 総仕上げ
+- [ ] シナリオ問題を解く
+- [ ] アンチパターンを復習
+- [ ] 弱点ドメインを重点復習
+- [ ] 模擬試験（あれば）
+
+## 学習のコツ
+
+### 実践重視
+- 読むだけでなく実際にコードを書く
+- 各ドメインで最低1つは動くものを作る
+
+### ドメイン横断的理解
+- 試験はシナリオベースで複数ドメインが絡む
+- 個々の知識だけでなく、組み合わせ方を理解する
+
+### アンチパターンの暗記
+- 「やってはいけないこと」は消去法に使える
+- [アンチパターン集](/certified/antipatterns) を繰り返し確認

@@ -1,0 +1,146 @@
+# Tool Use
+
+[Tool Use Overview](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview)
+
+## 概要
+
+Tool Use（関数呼び出し）は、Claudeの能力を外部ツールや関数で拡張する機能。ツールの定義（名前・説明・入力スキーマ）を提供すると、Claudeがいつ・どのツールを呼び出すかを判断する。
+
+ベンチマーク（LAB-Bench FigQA、SWE-bench等）では、シンプルなツールを追加するだけで能力が大幅に向上し、人間の専門家ベースラインを超えることもある。
+
+## 基本的な使い方
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    tools=[
+        {
+            "name": "get_weather",
+            "description": "指定された場所の現在の天気を取得する",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "都市名（例: 東京）",
+                    }
+                },
+                "required": ["location"],
+            },
+        }
+    ],
+    messages=[
+        {"role": "user", "content": "東京の天気を教えてください。"}
+    ],
+)
+```
+
+## ツール利用の流れ
+
+```
+1. ユーザーがメッセージを送信（ツール定義を含む）
+2. Claudeがツール呼び出しを決定（stop_reason: "tool_use"）
+3. アプリ側でツールを実行
+4. 結果をtool_resultとしてClaudeに返す
+5. Claudeが最終回答を生成
+```
+
+### ステップバイステップ
+
+```python
+# 1. 最初のリクエスト
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    tools=[weather_tool],
+    messages=[{"role": "user", "content": "東京の天気は？"}],
+)
+
+# 2. ツール呼び出しを検出
+tool_use = next(b for b in response.content if b.type == "tool_use")
+
+# 3. ツールを実行（アプリ側のロジック）
+weather_data = get_weather(tool_use.input["location"])
+
+# 4. 結果を返す
+final_response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    tools=[weather_tool],
+    messages=[
+        {"role": "user", "content": "東京の天気は？"},
+        {"role": "assistant", "content": response.content},
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": tool_use.id,
+                    "content": f"気温: {weather_data['temp']}°C",
+                }
+            ],
+        },
+    ],
+)
+```
+
+## ツール定義のスキーマ
+
+```json
+{
+  "name": "ツール名",
+  "description": "ツールの説明（Claudeが判断に使う）",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "param1": {
+        "type": "string",
+        "description": "パラメータの説明"
+      }
+    },
+    "required": ["param1"]
+  }
+}
+```
+
+## tool_choice パラメータ
+
+| 値 | 説明 |
+|:---|:-----|
+| `auto`（デフォルト） | Claudeが自動的にツール利用を判断 |
+| `any` | 必ずいずれかのツールを呼ぶ |
+| `tool` | 指定したツールを必ず呼ぶ |
+| `none` | ツールを使用しない |
+
+## Strict Tool Use
+
+`strict: true` を追加すると、ツール入力のスキーマ検証が保証される。型の不一致や必須フィールドの欠落がなくなる。
+
+```python
+{
+    "name": "get_weather",
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "location": {"type": "string"},
+            "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+        },
+        "required": ["location"],
+        "additionalProperties": False,
+    },
+}
+```
+
+## ベストプラクティス
+
+- **説明を具体的に書く** -- Claudeはツールの `description` を読んで利用を判断する
+- **少数のツールから始める** -- ツールが多すぎると選択精度が下がる
+- **エラーハンドリング** -- ツール実行失敗時は `is_error: true` で結果を返す
+- **Strict モードを本番で使う** -- スキーマ違反によるエラーを防止
+- **Extended Thinkingと併用** -- 複雑なツール選択の推論が向上する

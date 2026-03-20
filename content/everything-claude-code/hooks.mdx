@@ -1,0 +1,145 @@
+# フックシステム
+
+[Everything Claude Code - Hooks](https://github.com/affaan-m/everything-claude-code)
+
+フックはClaude Codeのツールイベントに応じて自動的にスクリプトを実行する仕組みです。コード品質の強制、セキュリティチェック、自動フォーマットなどに活用できます。
+
+## フックの概要
+
+フックはClaude Codeがツールを使用する際のライフサイクルイベントに介入する機能です。ファイル編集時に自動でリンターを実行したり、セッション開始時にコンテキストをロードしたりできます。
+
+## フックイベントの種類
+
+| イベント | タイミング | 用途 |
+|---|---|---|
+| `SessionStart` | セッション開始時 | 前回のコンテキストをロード |
+| `SessionEnd` | セッション終了時 | 状態を保存 |
+| `PreToolUse` | ツール実行前 | バリデーション、セキュリティチェック |
+| `PostToolUse` | ツール実行後 | フォーマット、リント |
+| `Stop` | エージェント停止時 | パターン抽出、クリーンアップ |
+
+## フックの設定
+
+フック設定は `hooks/hooks.json` に記述します：
+
+```json
+{
+  "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\.(ts|tsx|js|jsx)$\"",
+  "hooks": [{
+    "type": "command",
+    "command": "#!/bin/bash\ngrep -n 'console\\.log' \"$file_path\" && echo '[Hook] Remove console.log' >&2"
+  }]
+}
+```
+
+この例では、TypeScript/JavaScriptファイルが編集されるたびに `console.log` の残存をチェックします。
+
+## フックの実行制御
+
+### 厳格度プロファイル
+
+環境変数でフックの厳格度を設定できます：
+
+```bash
+# 標準（デフォルト）
+export ECC_HOOK_PROFILE=standard
+
+# 最小限（高速化優先）
+export ECC_HOOK_PROFILE=minimal
+
+# 厳格（全チェック実行）
+export ECC_HOOK_PROFILE=strict
+```
+
+### 特定フックの無効化
+
+```bash
+export ECC_DISABLED_HOOKS="pre:bash:tmux-reminder,post:edit:typecheck"
+```
+
+## 組み込みフックスクリプト
+
+ECCの `scripts/hooks/` に含まれるフックスクリプトです：
+
+### session-start.js
+セッション開始時に前回のコンテキスト（作業状態、ファイルパス、変数名など）をロードします。
+
+### session-end.js
+セッション終了時に現在の状態を保存し、次回のセッションで再開できるようにします。
+
+### pre-compact.js
+コンテキストのコンパクション（圧縮）の前に、重要な情報を保護するための準備を行います。
+
+### suggest-compact.js
+論理的なタスク区切りでコンパクションを推奨します。自動コンパクション（95%使用時）ではなく、戦略的なタイミングでの実行を促します。
+
+### evaluate-session.js
+セッション終了時にパターンを抽出し、継続学習システムに取り込みます。
+
+## Plankton Code Quality（PostToolUseフック）
+
+書き込み時のコード品質を自動で強制するフックシステムです：
+
+### 動作の仕組み
+
+1. ファイル編集のたびにフォーマッターを実行
+2. 違反をJSON形式で収集
+3. 複雑さに応じてサブプロセスエージェント（Haiku/Sonnet/Opus）に修正を委任
+4. リンター設定の改変を防止（チェックを回避するための設定変更をブロック）
+
+### 対応言語
+
+- Python
+- TypeScript
+- Shell
+- YAML / JSON / TOML
+- Markdown
+- Dockerfile
+
+## AgentShieldとの連携
+
+フックとAgentShieldを組み合わせることで、セキュリティと品質の両面をカバーできます：
+
+```bash
+# AgentShieldでスキャン
+npx ecc-agentshield scan
+
+# 安全な問題を自動修正
+npx ecc-agentshield scan --fix
+
+# 3つのOpusエージェントによる深層分析
+npx ecc-agentshield scan --opus --stream
+
+# セキュアな設定を新規生成
+npx ecc-agentshield init
+```
+
+### AgentShieldのスキャン対象
+
+- 14パターンのシークレット検出（APIキー、トークン、AWS認証情報）
+- パーミッション監査
+- フックインジェクション分析
+- MCPサーバーリスクプロファイリング
+- エージェント設定レビュー
+
+Claude Code内からは `/security-scan` コマンドで実行できます。
+
+## トラブルシューティング
+
+### フックが動作しない場合
+
+最もよくある問題は、`hooks` フィールドを `.claude-plugin/plugin.json` に追加してしまうことです。
+
+**Claude Code v2.1以降**では `hooks/hooks.json` が自動的にロードされます。`plugin.json` で明示的に宣言すると重複検出エラーが発生します。
+
+**解決策：**
+1. `plugin.json` から `hooks` 宣言を削除
+2. `hooks/hooks.json` が存在することを確認
+
+### フックのデバッグ
+
+フックが期待通りに動作しない場合は：
+
+1. `ECC_HOOK_PROFILE=strict` に設定してすべてのフックを有効化
+2. フックスクリプトを単独で実行してエラーを確認
+3. `ECC_DISABLED_HOOKS` で他のフックを無効化して切り分け

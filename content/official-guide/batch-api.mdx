@@ -1,0 +1,139 @@
+# Batch API
+
+[Batch Processing](https://docs.anthropic.com/en/docs/build-with-claude/batch-processing)
+
+## 概要
+
+Message Batches APIは、大量のMessagesリクエストを非同期でバッチ処理する機能。即座のレスポンスが不要な場合に、**コストを50%削減**しつつスループットを向上させる。ほとんどのバッチは1時間以内に完了する。
+
+## ユースケース
+
+- **大規模評価**: 数千のテストケースを効率的に処理
+- **コンテンツモデレーション**: 大量のユーザー生成コンテンツを分析
+- **データ分析**: 大規模データセットの要約・分析
+- **一括コンテンツ生成**: 商品説明、記事要約の大量作成
+
+## 料金
+
+通常API料金の**50%**で利用可能。
+
+| モデル | バッチ入力 | バッチ出力 |
+|:-------|:---------|:---------|
+| Claude Opus 4.6 | $2.50 / MTok | $12.50 / MTok |
+| Claude Sonnet 4.6 | $1.50 / MTok | $7.50 / MTok |
+| Claude Haiku 4.5 | $0.50 / MTok | $2.50 / MTok |
+
+## 基本的な使い方
+
+### バッチの作成
+
+```python
+import anthropic
+from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
+from anthropic.types.messages.batch_create_params import Request
+
+client = anthropic.Anthropic()
+
+message_batch = client.messages.batches.create(
+    requests=[
+        Request(
+            custom_id="request-1",
+            params=MessageCreateParamsNonStreaming(
+                model="claude-sonnet-4-6",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": "日本の首都は？"}],
+            ),
+        ),
+        Request(
+            custom_id="request-2",
+            params=MessageCreateParamsNonStreaming(
+                model="claude-sonnet-4-6",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": "フランスの首都は？"}],
+            ),
+        ),
+    ]
+)
+print(message_batch.id)  # バッチIDを保存
+```
+
+### ステータスの確認
+
+```python
+batch = client.messages.batches.retrieve(message_batch.id)
+print(f"Status: {batch.processing_status}")
+# processing, ended
+```
+
+### 結果の取得
+
+```python
+for result in client.messages.batches.results(message_batch.id):
+    print(f"ID: {result.custom_id}")
+    if result.result.type == "succeeded":
+        print(f"Response: {result.result.message.content[0].text}")
+    elif result.result.type == "errored":
+        print(f"Error: {result.result.error}")
+```
+
+### ポーリングによる完了待ち
+
+```python
+# SDKのヘルパーを使用（推奨）
+result_batch = client.messages.batches.create_and_poll(
+    requests=[...],
+    poll_interval_seconds=60,
+)
+
+# 結果を処理
+for result in client.messages.batches.results(result_batch.id):
+    print(result)
+```
+
+## 制限事項
+
+- 1バッチあたり**最大100,000リクエスト**または**256MB**
+- ほとんどのバッチは1時間以内に完了。24時間経過で未処理リクエストは期限切れ
+- 結果は作成後**29日間**ダウンロード可能
+- バッチはWorkspace単位でスコープされる
+
+## バッチに含められるリクエスト
+
+Messages APIに送れるものは全てバッチ化可能:
+
+- Vision（画像入力）
+- Tool Use
+- System Messages
+- マルチターン会話
+- ベータ機能
+
+各リクエストは独立処理されるため、異なるタイプのリクエストを1バッチに混在可能。
+
+## Webhook通知（推奨）
+
+ポーリングの代わりにWebhookで完了通知を受け取れる。
+
+```python
+message_batch = client.messages.batches.create(
+    requests=[...],
+)
+
+# Webhook URLはConsoleで設定
+# バッチ完了時にPOSTリクエストが送信される
+```
+
+## バッチのキャンセル
+
+```python
+client.messages.batches.cancel(message_batch.id)
+```
+
+未処理リクエストのみキャンセルされ、処理済みリクエストは結果に含まれる。
+
+## ベストプラクティス
+
+- **Prompt Cachingと併用** -- バッチ処理は5分以上かかるため、1時間キャッシュ（`ttl: "1h"`）を使うとキャッシュヒット率が向上
+- **Webhookを活用** -- ポーリングより効率的
+- **`custom_id` を意味のある値に** -- 結果の照合に使用
+- **エラーハンドリング** -- 個々のリクエストが失敗しても他は影響を受けない
+- 大量処理にはRate Limitに注意

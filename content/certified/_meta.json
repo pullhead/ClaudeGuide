@@ -1,0 +1,14 @@
+{
+  "index": "試験概要",
+  "domain-1": "D1: エージェント設計 (27%)",
+  "domain-2": "D2: ツール設計 & MCP (18%)",
+  "domain-3": "D3: Claude Code (20%)",
+  "domain-4": "D4: プロンプト & 構造化出力 (20%)",
+  "domain-5": "D5: コンテキスト管理 (15%)",
+  "---": {
+    "type": "separator"
+  },
+  "scenarios": "試験シナリオ",
+  "antipatterns": "アンチパターン集",
+  "resources": "学習リソース"
+}

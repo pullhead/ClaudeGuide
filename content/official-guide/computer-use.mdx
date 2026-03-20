@@ -1,0 +1,128 @@
+# Computer Use
+
+[Computer Use](https://docs.anthropic.com/en/docs/build-with-claude/computer-use)
+
+## 概要
+
+Computer Useは、Claudeがデスクトップ環境と対話するベータ機能。スクリーンショットの取得、マウス操作、キーボード入力により、自律的なデスクトップ操作を実現する。
+
+WebArenaベンチマークでは、単一エージェントシステムとしてState-of-the-artの結果を達成している。
+
+## 提供する機能
+
+- **スクリーンショット取得** -- 画面表示の確認
+- **マウス制御** -- クリック、ドラッグ、カーソル移動
+- **キーボード入力** -- テキスト入力、キーボードショートカット
+- **デスクトップ自動化** -- あらゆるアプリケーションとの対話
+
+## 対応モデルとバージョン
+
+| モデル | ツールバージョン | ベータフラグ |
+|:-------|:---------------|:-----------|
+| Opus 4.6 / Sonnet 4.6 / Opus 4.5 | `computer_20251124` | `computer-use-2025-11-24` |
+| その他の対応モデル | `computer_20250124` | `computer-use-2025-01-24` |
+
+`computer_20251124` では、画面の特定領域を詳細に確認する **zoom アクション**が追加されている。
+
+## クイックスタート
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.beta.messages.create(
+    model="claude-opus-4-6",
+    max_tokens=1024,
+    tools=[
+        {
+            "type": "computer_20251124",
+            "name": "computer",
+            "display_width_px": 1024,
+            "display_height_px": 768,
+            "display_number": 1,
+        },
+        {"type": "text_editor_20250728", "name": "str_replace_based_edit_tool"},
+        {"type": "bash_20250124", "name": "bash"},
+    ],
+    messages=[
+        {"role": "user", "content": "デスクトップに猫の画像を保存してください。"}
+    ],
+    betas=["computer-use-2025-11-24"],
+)
+```
+
+## 付属ツール
+
+Computer Useと組み合わせて利用する追加ツール:
+
+### Text Editor (`text_editor_20250728`)
+
+ファイルの閲覧・編集用ツール。コマンドは `view`, `create`, `str_replace`, `insert`, `undo_edit`。
+
+### Bash (`bash_20250124`)
+
+シェルコマンドの実行用ツール。
+
+## エージェントループの構築
+
+Computer Useはエージェントループで動作する:
+
+```
+1. ユーザーがタスクを指示
+2. Claudeがスクリーンショットを取得
+3. 画面を分析し、次のアクションを決定
+4. アクションを実行（クリック、キー入力等）
+5. 結果のスクリーンショットをClaudeに返す
+6. タスク完了までループ
+```
+
+## セキュリティに関する注意
+
+Computer Useはベータ機能であり、通常のAPI機能とは異なるリスクがある。
+
+### 推奨される対策
+
+1. **専用の仮想マシンまたはコンテナ**を使用（最小権限）
+2. アカウントログイン情報など**機密データへのアクセスを制限**
+3. インターネットアクセスを**許可リスト制**に
+4. 重要な意思決定には**人間の確認**を求める
+
+### プロンプトインジェクション対策
+
+- Webページや画像内の指示がClaudeの動作を変える可能性がある
+- 分類器が自動的にプロンプトインジェクションを検出し、ユーザー確認を求める
+- Human-in-the-loopがないユースケースでは、この保護をオプトアウト可能
+
+## 主なアクション
+
+| アクション | 説明 |
+|:----------|:-----|
+| `screenshot` | 画面のスクリーンショットを取得 |
+| `click` | 指定座標をクリック |
+| `type` | テキストを入力 |
+| `key` | キーボードショートカットを送信 |
+| `mouse_move` | カーソルを移動 |
+| `drag` | ドラッグ操作 |
+| `scroll` | スクロール |
+| `zoom` | 画面領域のズーム（20251124版のみ） |
+| `wait` | 指定秒数待機 |
+
+## リファレンス実装
+
+Anthropicが提供するリファレンス実装（GitHub）には以下が含まれる:
+
+- Webインターフェース
+- Dockerコンテナ
+- ツールの実装例
+- エージェントループの実装
+
+[computer-use-demo](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
+
+## ベストプラクティス
+
+- スクリーンショットの解像度をモデルに合わせて調整する（XGA: 1024x768 推奨）
+- アクション後は必ずスクリーンショットを取得して結果を確認する
+- エラー時のリトライロジックを実装する
+- 長時間タスクではComputer Use以外のツール（bash、text editor）も併用する
+- 本番環境ではセキュリティ対策を徹底する

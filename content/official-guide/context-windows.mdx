@@ -1,0 +1,95 @@
+# コンテキストウィンドウ
+
+[Context Windows](https://docs.anthropic.com/en/docs/build-with-claude/context-windows)
+
+## 概要
+
+コンテキストウィンドウは、言語モデルが応答生成時に参照できるテキスト全体（応答自体を含む）を指す。これは訓練データとは異なり、モデルの「作業メモリ」にあたる。
+
+## モデルごとのコンテキストサイズ
+
+| モデル | コンテキスト | 最大出力 |
+|:-------|:-----------|:---------|
+| Claude Opus 4.6 | 1M tokens | 128K tokens |
+| Claude Sonnet 4.6 | 1M tokens | 64K tokens |
+| Claude Haiku 4.5 | 200K tokens | 64K tokens |
+| Claude Opus 4.5 | 200K tokens | 64K tokens |
+| Claude Sonnet 4.5 / 4 | 200K (1Mはベータヘッダー必要) | 64K tokens |
+
+## コンテキストウィンドウの仕組み
+
+- **累積的**: 会話が進むにつれ、全ターンのメッセージが蓄積される
+- **線形成長**: 各ターンで以前のターンが完全に保持される
+- **入力と出力**: 入力（会話履歴 + 新メッセージ）と出力（Claudeの応答）の両方がウィンドウ内に収まる必要がある
+
+## Extended Thinkingとコンテキストウィンドウ
+
+Extended Thinking使用時の重要なポイント:
+
+- thinking トークンは `max_tokens` のサブセット
+- **前のターンのthinkingブロックは自動的にストリップされる** -- APIが自動で除外するため、手動で削除する必要はない
+- thinking トークンは出力トークンとして1回だけ課金される
+- 有効なコンテキスト = `(input_tokens - previous_thinking_tokens) + current_turn_tokens`
+
+### Tool Useとの組み合わせ
+
+- ツール結果を返す際、対応するthinkingブロックは**必ず含める**必要がある
+- ツール利用サイクル完了後、次のUserターンでthinkingブロックは自動ストリップされる
+- thinkingブロックの改変はエラーになる（暗号署名で検証される）
+
+## コンテキスト認識機能
+
+Claude Sonnet 4.6、Sonnet 4.5、Haiku 4.5には**コンテキスト認識**機能がある。モデルが残りのコンテキストウィンドウ（トークン予算）を追跡し、タスクをより効果的に管理する。
+
+```xml
+<!-- 会話開始時 -->
+<budget:token_budget>1000000</budget:token_budget>
+
+<!-- ツール呼び出し後のアップデート -->
+<system_warning>Token usage: 35000/1000000; 965000 remaining</system_warning>
+```
+
+活用場面:
+- 長時間のエージェントセッション
+- マルチコンテキストウィンドウのワークフロー
+- 慎重なトークン管理が必要な複雑タスク
+
+## コンテキスト管理戦略
+
+### サーバーサイドCompaction（推奨）
+
+コンテキストウィンドウの上限に近づいた場合、**Compaction**が推奨される。会話の前半部分を自動的に要約し、長時間の会話をコンテキスト制限を超えて継続可能にする。
+
+- Claude Opus 4.6 / Sonnet 4.6 でベータ利用可能
+
+### Context Editing
+
+より細かい制御が必要な場合:
+- **Tool result clearing** -- エージェントワークフローで古いツール結果をクリア
+- **Thinking block clearing** -- Extended Thinkingのブロックを管理
+
+## Context Rot への対策
+
+コンテキストが大きくなるほど、精度とリコールが低下する現象（**Context Rot**）が起きる。対策:
+
+- コンテキスト内の情報を厳選する（量より質）
+- 不要な情報を積極的に除去する
+- Compactionで定期的に要約する
+- 重要な情報をコンテキストの先頭に配置する
+
+## トークンカウント
+
+リクエスト送信前にトークン数を推定するには、Token Counting APIを使用する。
+
+```python
+count = client.messages.count_tokens(
+    model="claude-sonnet-4-6",
+    messages=[{"role": "user", "content": "長いメッセージ..."}],
+)
+print(f"Input tokens: {count.input_tokens}")
+```
+
+## 注意事項
+
+- Claude Sonnet 3.7以降のモデルは、プロンプトと出力トークンがコンテキストウィンドウを超えると**バリデーションエラー**を返す（サイレントな切り捨てはしない）
+- 1リクエストあたり最大600の画像またはPDFページ（200Kモデルは100）

@@ -1,0 +1,157 @@
+# CLAUDE.mdの書き方・階層
+
+[Everything Claude Code - CLAUDE.md](https://github.com/affaan-m/everything-claude-code)
+
+`CLAUDE.md` はClaude Codeに対するプロジェクト固有の指示ファイルです。エージェントの振る舞い、使用するモデル、スキル、ルールなどを制御できます。
+
+## CLAUDE.mdとは
+
+`CLAUDE.md` はプロジェクトルートに配置するマークダウンファイルで、Claude Codeがセッション開始時に自動的に読み込みます。プロジェクト固有のコーディング規約、アーキテクチャ、ワークフローなどを記述することで、エージェントの品質と一貫性を向上させます。
+
+## 階層構造
+
+CLAUDE.mdは複数のレベルで設定できます。下位の設定が上位を上書きします：
+
+### 1. グローバル設定（ユーザーレベル）
+
+```
+~/.claude/CLAUDE.md
+```
+
+すべてのプロジェクトに適用される共通設定です。言語設定やグローバルなワークフロー指示を記述します。
+
+### 2. プロジェクト設定
+
+```
+<プロジェクトルート>/CLAUDE.md
+```
+
+プロジェクト固有の設定です。技術スタック、アーキテクチャ方針、テスト戦略などを記述します。
+
+### 3. ローカル設定（個人用・Git管理外）
+
+```
+<プロジェクトルート>/CLAUDE.local.md
+```
+
+個人的な設定や機密情報を含む指示を記述します。`.gitignore` に追加してリポジトリに含めないようにします。
+
+## 基本的な書き方
+
+```markdown
+# プロジェクト名
+
+## 技術スタック
+- Next.js 15 (App Router)
+- TypeScript 5.x
+- Supabase (データベース・認証)
+- Tailwind CSS
+
+## コーディング規約
+- 関数コンポーネントのみ使用（クラスコンポーネント禁止）
+- `any` 型の使用禁止
+- すべての公開関数にJSDocコメントを記述
+- テストカバレッジ80%以上を維持
+
+## ディレクトリ構造
+- `src/app/` - ページコンポーネント（App Router）
+- `src/components/` - 共通コンポーネント
+- `src/lib/` - ユーティリティ・ヘルパー
+- `src/types/` - TypeScript型定義
+
+## Git規約
+- コミットメッセージは Conventional Commits 形式
+- PRは1機能1PRの原則
+- mainブランチへの直接プッシュ禁止
+```
+
+## 高度な設定（ECC形式）
+
+Everything Claude Codeを導入している場合、より詳細な設定が可能です：
+
+```markdown
+# Project Configuration
+
+## Agents
+
+[agents]
+model = "opus"  # このプロジェクトではopusを使用
+
+[[agents.tdd-guide]]
+max_tokens = 8000
+temperature = 0.5
+
+## Skills
+
+[skills]
+active = ["tdd-workflow", "security-review"]
+
+## Rules
+
+[rules]
+strict_mode = true
+
+## MCP Servers
+
+[[mcp_servers]]
+name = "supabase"
+enabled = true
+
+## Context
+
+[context]
+max_tokens = 150000
+research_budget = 20000
+```
+
+## ルールファイルの構造
+
+ECCでは、CLAUDE.mdに加えてルールファイルで言語固有のガイドラインを設定します：
+
+```
+~/.claude/rules/          # ユーザーレベルのルール
+  ├── coding-style.md     # コーディングスタイル
+  ├── git-workflow.md     # Gitワークフロー
+  ├── testing.md          # テスト方針
+  ├── performance.md      # パフォーマンス指針
+  ├── patterns.md         # デザインパターン
+  ├── hooks.md            # フック設定
+  ├── agents.md           # エージェント設定
+  └── security.md         # セキュリティ方針
+
+.claude/rules/            # プロジェクトレベルのルール
+```
+
+ルールのインストール：
+
+```bash
+# ユーザーレベル（全プロジェクトに適用）
+cp -r everything-claude-code/rules/common/* ~/.claude/rules/
+cp -r everything-claude-code/rules/typescript/* ~/.claude/rules/
+
+# プロジェクトレベル（現在のディレクトリのみ）
+mkdir -p .claude/rules
+cp -r everything-claude-code/rules/common/* .claude/rules/
+cp -r everything-claude-code/rules/typescript/* .claude/rules/
+```
+
+## プロジェクトテンプレート
+
+ECCには3つの実践的なプロジェクトテンプレートが含まれています：
+
+| テンプレート | スタック |
+|---|---|
+| `saas-nextjs-CLAUDE.md` | Next.js + Supabase + Stripe |
+| `go-microservice-CLAUDE.md` | Go + gRPC + PostgreSQL |
+| `django-api-CLAUDE.md` | Django REST API + Celery |
+
+これらをコピーして自分のプロジェクトに合わせてカスタマイズできます。
+
+## ベストプラクティス
+
+1. **具体的に書く** — 「きれいなコードを書け」ではなく、具体的なルール（関数の最大行数、命名規則など）を記述する
+2. **ディレクトリ構造を明記する** — Claude Codeがファイルの配置場所を正確に把握できる
+3. **禁止事項を明記する** — やってほしくないことを明確に伝える（`any`禁止、特定ライブラリの使用禁止など）
+4. **テスト方針を含める** — テストの種類、カバレッジ目標、テストフレームワークを指定する
+5. **段階的に育てる** — 最初は最小限の設定から始め、プロジェクトの成長に合わせて拡充する
+6. **ローカル設定を活用する** — チーム共有の `CLAUDE.md` と個人用の `CLAUDE.local.md` を使い分ける

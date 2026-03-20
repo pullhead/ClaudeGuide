@@ -1,0 +1,172 @@
+# MCPサーバー設計
+
+[MCP Servers - Claude Code Best Practice](https://github.com/shanraisshan/claude-code-best-practice)
+
+## MCP（Model Context Protocol）とは
+
+MCP は、Claude Code を外部ツール、データベース、API に接続するための標準プロトコルです。MCPサーバーを通じて、Claude が直接外部リソースにアクセスできるようになります。
+
+**設定ファイル:**
+- `.claude/settings.json` — プロジェクトレベルの設定
+- `.mcp.json` — MCP専用の設定ファイル
+
+## 設定方法
+
+### .mcp.json の基本構造
+
+```json
+{
+  "mcpServers": {
+    "server-name": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-example"],
+      "env": {
+        "API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+### settings.json での設定
+
+```json
+{
+  "mcpServers": {
+    "database": {
+      "command": "npx",
+      "args": ["-y", "@mcp/postgres-server"],
+      "env": {
+        "DATABASE_URL": "postgresql://localhost:5432/mydb"
+      }
+    }
+  }
+}
+```
+
+## 代表的なMCPサーバー
+
+### ブラウザ自動化
+
+Claude にブラウザ操作やデバッグ能力を与えるMCPサーバーです。
+
+| サーバー | 用途 |
+|----------|------|
+| **Playwright MCP** | ブラウザ自動化テスト |
+| **Chrome DevTools MCP** | Chrome開発者ツールへのアクセス |
+| **Claude in Chrome** | Chromeブラウザ内での操作 |
+
+これらを使うと、Claude がコンソールログを独立して観察でき、デバッグが大幅に効率化されます。
+
+### データベース接続
+
+```json
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@mcp/postgres-server"],
+      "env": {
+        "DATABASE_URL": "postgresql://localhost:5432/mydb"
+      }
+    },
+    "redis": {
+      "command": "npx",
+      "args": ["-y", "@mcp/redis-server"],
+      "env": {
+        "REDIS_URL": "redis://localhost:6379"
+      }
+    }
+  }
+}
+```
+
+### API統合
+
+外部サービスのAPIをClaude から直接利用可能にします。
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "ghp_xxxx"
+      }
+    },
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "@mcp/linear-server"],
+      "env": {
+        "LINEAR_API_KEY": "lin_api_xxxx"
+      }
+    }
+  }
+}
+```
+
+## 設計パターン
+
+### プロジェクトローカル vs グローバル
+
+| スコープ | ファイル | 用途 |
+|---------|---------|------|
+| プロジェクト | `.mcp.json` | プロジェクト固有のツール接続 |
+| グローバル | `~/.claude/settings.json` | 全プロジェクト共通のツール |
+
+プロジェクト固有のデータベースやAPIは `.mcp.json` に、GitHub や Slack など全プロジェクトで使うサービスはグローバル設定に配置します。
+
+### 環境変数の管理
+
+APIキーなどの秘密情報は環境変数で管理します。`.mcp.json` をGitにコミットする場合は、秘密情報を含めないよう注意してください。
+
+```json
+{
+  "mcpServers": {
+    "api-server": {
+      "command": "npx",
+      "args": ["-y", "@mcp/api-server"],
+      "env": {
+        "API_KEY": "${API_KEY}"
+      }
+    }
+  }
+}
+```
+
+### MCPサーバーの選定基準
+
+1. **公式・信頼できるソース**のサーバーを優先する
+2. **最小権限の原則** — 必要なスコープのみを付与する
+3. **ローカル実行**可能なサーバーを選ぶ（外部への不要なデータ送信を避ける）
+
+## デバッグでの活用
+
+MCPサーバーはデバッグワークフローで特に威力を発揮します。
+
+```
+問題発生
+  ↓
+Claude がコードを分析
+  ↓
+Playwright MCP でブラウザ操作を再現
+  ↓
+Chrome DevTools MCP でコンソールログを確認
+  ↓
+データベース MCP でデータ状態を検証
+  ↓
+修正案の提示と適用
+```
+
+スクリーンショットの共有と合わせて使うと、視覚的なデバッグも可能になります。
+
+## ベストプラクティスまとめ
+
+| 項目 | 推奨 |
+|------|------|
+| 設定ファイル | プロジェクト固有は `.mcp.json`、共通は `settings.json` |
+| 秘密情報 | 環境変数で管理、Gitにコミットしない |
+| サーバー選定 | 公式ソース優先、最小権限 |
+| デバッグ | ブラウザMCPでコンソールログを活用 |
+| 構成 | 必要なサーバーだけを有効にする |

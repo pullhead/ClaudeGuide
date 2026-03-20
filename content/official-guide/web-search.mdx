@@ -1,0 +1,156 @@
+# Web Search
+
+[Web Search Tool](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/web-search)
+
+## 概要
+
+Web Searchツールは、Claudeにリアルタイムのウェブ検索能力を与える機能。知識カットオフ以降の最新情報を取得し、ソース付きで回答できる。Claudeが自動的に検索タイミングを判断し、結果にはCitationsが自動付与される。
+
+## 対応モデル
+
+Claude Opus 4.6 / 4.5 / 4.1 / 4、Sonnet 4.6 / 4.5 / 4、Haiku 4.5
+
+## 2つのバージョン
+
+### web_search_20260209（最新）
+
+Claude Opus 4.6 / Sonnet 4.6で**Dynamic Filtering**をサポート。Claudeがコードを書いて検索結果をフィルタリングし、関連情報のみをコンテキストに取り込む。トークン消費を削減し、回答精度を向上させる。
+
+### web_search_20250305（基本版）
+
+Dynamic Filteringなし。Zero Data Retention（ZDR）対応。
+
+## 基本的な使い方
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "今日のニューヨークの天気は？"}],
+    tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
+)
+```
+
+### Dynamic Filtering版
+
+```python
+response = client.messages.create(
+    model="claude-opus-4-6",
+    max_tokens=4096,
+    messages=[
+        {"role": "user", "content": "AAPLとGOOGLのP/E比を比較してください。"}
+    ],
+    tools=[{"type": "web_search_20260209", "name": "web_search"}],
+)
+```
+
+## ツール定義のパラメータ
+
+```json
+{
+  "type": "web_search_20250305",
+  "name": "web_search",
+  "max_uses": 5,
+  "allowed_domains": ["example.com", "trusteddomain.org"],
+  "blocked_domains": ["untrustedsource.com"],
+  "user_location": {
+    "type": "approximate",
+    "city": "Tokyo",
+    "region": "Tokyo",
+    "country": "JP",
+    "timezone": "Asia/Tokyo"
+  }
+}
+```
+
+| パラメータ | 説明 |
+|:----------|:-----|
+| `max_uses` | 1リクエストあたりの最大検索回数 |
+| `allowed_domains` | 許可ドメインのリスト（ホワイトリスト） |
+| `blocked_domains` | ブロックドメインのリスト（ブラックリスト） |
+| `user_location` | 検索結果のローカライズ |
+
+`allowed_domains` と `blocked_domains` は同時に指定できない。
+
+## ドメインフィルタリング
+
+- スキーム（http/https）は不要: `example.com`
+- サブドメインは自動的に含まれる: `example.com` は `docs.example.com` もカバー
+- サブパス対応: `example.com/blog` は `example.com/blog/post-1` にマッチ
+- ワイルドカード: `example.com/*` は有効、`*.example.com` は無効
+
+## レスポンスの構造
+
+```json
+{
+  "content": [
+    {"type": "text", "text": "検索してみます。"},
+    {
+      "type": "server_tool_use",
+      "name": "web_search",
+      "input": {"query": "claude shannon birthday"}
+    },
+    {
+      "type": "web_search_tool_result",
+      "content": [
+        {
+          "type": "web_search_result",
+          "url": "https://en.wikipedia.org/wiki/Claude_Shannon",
+          "title": "Claude Shannon - Wikipedia",
+          "encrypted_content": "..."
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Claude Shannonは1916年4月30日に生まれました",
+      "citations": [
+        {
+          "type": "web_search_result_location",
+          "url": "https://en.wikipedia.org/wiki/Claude_Shannon",
+          "cited_text": "Claude Elwood Shannon (April 30, 1916 – ...)"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## 料金
+
+- **検索料金**: $10 / 1,000検索
+- **トークン料金**: 検索結果は入力トークンとしてカウント
+- エラー時の検索は課金されない
+
+```json
+"usage": {
+  "input_tokens": 6039,
+  "output_tokens": 931,
+  "server_tool_use": {
+    "web_search_requests": 1
+  }
+}
+```
+
+## 設定要件
+
+組織の管理者がClaude Consoleの Privacy設定で Web Searchを有効にする必要がある。
+
+## ストリーミング
+
+ストリーミング時は検索実行中にポーズが入り、その後結果がストリームされる。
+
+## Prompt Cachingとの併用
+
+`cache_control` ブレークポイントを設定すると、最後の `web_search_tool_result` ブロックまで自動キャッシュされる。
+
+## ベストプラクティス
+
+- `max_uses` で検索回数を制限し、コストを管理する
+- `user_location` でローカルな検索結果を取得する
+- `allowed_domains` で信頼できるソースに限定する
+- 引用は必ずエンドユーザーに表示する（利用規約上の要件）

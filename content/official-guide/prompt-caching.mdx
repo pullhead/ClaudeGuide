@@ -1,0 +1,154 @@
+# Prompt Caching
+
+[Prompt Caching](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching)
+
+## 概要
+
+Prompt Cachingは、プロンプトのプレフィックスを再利用することで、処理時間とコストを大幅に削減する機能。繰り返しのタスクや共通要素を含むプロンプトに特に有効。
+
+KVキャッシュの表現と暗号ハッシュのみが保存され、プロンプトの生テキストは保存されない（Zero Data Retention対応）。
+
+## 2つの実装方法
+
+### 1. 自動キャッシュ（推奨）
+
+リクエストのトップレベルに `cache_control` を追加するだけ。最後のキャッシュ可能なブロックに自動的にブレークポイントが設定される。
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    cache_control={"type": "ephemeral"},
+    system="あなたは法律文書の分析に特化したAIアシスタントです...",
+    messages=[
+        {"role": "user", "content": "この契約書の重要な条項を分析してください。"}
+    ],
+)
+```
+
+マルチターンでの挙動:
+- **リクエスト1**: 全体がキャッシュに書き込まれる
+- **リクエスト2**: 以前のメッセージまでキャッシュから読み取り、新しい部分を書き込み
+- **リクエスト3**: 以前のメッセージ2までキャッシュから読み取り
+
+### 2. 明示的ブレークポイント
+
+個々のコンテンツブロックに `cache_control` を配置し、何をキャッシュするかを細かく制御する。
+
+```python
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    system=[
+        {"type": "text", "text": "あなたは法律文書の分析に特化したAIアシスタントです。"},
+        {
+            "type": "text",
+            "text": "以下は50ページの法律文書の全文です: [文書内容]",
+            "cache_control": {"type": "ephemeral"},
+        },
+    ],
+    messages=[
+        {"role": "user", "content": "重要な条項は何ですか？"}
+    ],
+)
+```
+
+## 料金体系
+
+| モデル | 通常入力 | 5分キャッシュ書込 | 1時間キャッシュ書込 | キャッシュ読取 |
+|:-------|:---------|:-----------------|:-------------------|:-------------|
+| Opus 4.6 | $5 | $6.25 (1.25x) | $10 (2x) | $0.50 (0.1x) |
+| Sonnet 4.6 | $3 | $3.75 (1.25x) | $6 (2x) | $0.30 (0.1x) |
+| Haiku 4.5 | $1 | $1.25 (1.25x) | $2 (2x) | $0.10 (0.1x) |
+
+**キャッシュ読取は基本入力料金の10分の1** -- 頻繁に再利用するプロンプトで大幅なコスト削減が可能。
+
+## キャッシュのTTL
+
+- **デフォルト**: 5分（`"type": "ephemeral"`）
+- **拡張**: 1時間（`"ttl": "1h"` を追加）
+
+```json
+{"cache_control": {"type": "ephemeral", "ttl": "1h"}}
+```
+
+1時間キャッシュの活用場面:
+- リクエスト間隔が5分以上だが1時間未満
+- エージェントのサブタスクが5分以上かかる
+- 長時間のチャットセッション
+
+## 最小キャッシュ可能トークン数
+
+| モデル | 最小トークン |
+|:-------|:-----------|
+| Opus 4.6 / 4.5 | 4,096 |
+| Sonnet 4.6 | 2,048 |
+| Haiku 4.5 | 4,096 |
+| その他 | 1,024 |
+
+これ未満のプロンプトは `cache_control` を付けてもキャッシュされない。
+
+## キャッシュパフォーマンスの監視
+
+```python
+response = client.messages.create(...)
+
+print(f"キャッシュ読取: {response.usage.cache_read_input_tokens}")
+print(f"キャッシュ書込: {response.usage.cache_creation_input_tokens}")
+print(f"入力トークン: {response.usage.input_tokens}")
+# 合計 = cache_read + cache_creation + input_tokens
+```
+
+## よくある間違い
+
+### ブレークポイントの誤配置
+
+```python
+# 悪い例: 変化するコンテンツにブレークポイント
+messages = [
+    {"role": "user", "content": "静的なコンテキスト..."},
+    {
+        "role": "user",
+        "content": f"タイムスタンプ: {now}...",  # 毎回変わる
+        "cache_control": {"type": "ephemeral"}     # キャッシュヒットしない！
+    },
+]
+
+# 良い例: 安定したプレフィックスにブレークポイント
+messages = [
+    {
+        "role": "user",
+        "content": "静的なコンテキスト...",
+        "cache_control": {"type": "ephemeral"}  # 安定した部分をキャッシュ
+    },
+    {"role": "user", "content": f"タイムスタンプ: {now}..."},
+]
+```
+
+## キャッシュ無効化の条件
+
+以下の変更はキャッシュを無効化する:
+
+- ツール定義の変更（全キャッシュ無効化）
+- `tool_choice` の変更（system / messages が無効化）
+- 画像の追加/削除（system / messages が無効化）
+- thinking パラメータの変更（system / messages が無効化）
+
+## 主なユースケース
+
+1. **会話エージェント** -- 長い指示やドキュメントを含む継続的な会話
+2. **コーディングアシスタント** -- 関連コードベースをプロンプトに保持
+3. **大量文書処理** -- 長文資料を毎回再送信せずに処理
+4. **ナレッジベース** -- ドキュメント全体を埋め込み、ユーザーの質問に回答
+
+## ベストプラクティス
+
+- マルチターン会話には**自動キャッシュ**から始める
+- キャッシュ対象は**安定した再利用可能なコンテンツ**（指示、コンテキスト、例）
+- ブレークポイントは**リクエスト間で同一の最後のブロック**に配置
+- キャッシュヒット率を定期的に監視する
+- キャッシュヒットはレート制限にカウントされない

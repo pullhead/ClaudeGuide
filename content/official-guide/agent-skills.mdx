@@ -1,0 +1,136 @@
+# Agent Skills
+
+[Agentic Patterns](https://docs.anthropic.com/en/docs/build-with-claude/agentic/overview)
+
+## 概要
+
+エージェントは、Claudeがツールを使いながら自律的にタスクを解決するシステムパターン。本ページでは、エージェント構築の主要な設計パターンとベストプラクティスをまとめる。
+
+## エージェントループの基本
+
+エージェントの核となるのは、ツール呼び出しを含むループ構造:
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+tools = [...]  # ツール定義
+messages = [{"role": "user", "content": "タスクの指示"}]
+
+while True:
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=4096,
+        tools=tools,
+        messages=messages,
+    )
+
+    # 完了チェック
+    if response.stop_reason == "end_turn":
+        break
+
+    # ツール呼び出しの処理
+    if response.stop_reason == "tool_use":
+        messages.append({"role": "assistant", "content": response.content})
+        tool_results = []
+        for block in response.content:
+            if block.type == "tool_use":
+                result = execute_tool(block.name, block.input)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result,
+                })
+        messages.append({"role": "user", "content": tool_results})
+```
+
+## 主要な設計パターン
+
+### 1. シングルエージェントループ
+
+1つのClaudeインスタンスがツールを使いながらタスクを解決する最もシンプルなパターン。
+
+- `stop_reason: "tool_use"` の間はループを継続
+- `stop_reason: "end_turn"` で完了
+- **適用場面**: 単一スコープのタスク
+
+### 2. オーケストレータ-ワーカー
+
+中央のオーケストレータが複数のワーカーエージェントにタスクを委任する。
+
+- 各ワーカーは専門化されたツールとプロンプトを持つ
+- オーケストレータが結果を統合
+- **適用場面**: 複雑なタスクの分解と並列処理
+
+### 3. ルーティング
+
+入力に基づいて、適切な専門エージェントにルーティングする。
+
+- 分類器が最初にタスクタイプを判定
+- タスクに応じた専門エージェントが処理
+- **適用場面**: カスタマーサポート、マルチドメイン処理
+
+### 4. パイプライン
+
+タスクを順次処理ステップに分解し、各ステップの出力を次の入力にする。
+
+- 各ステップが特定の変換を担当
+- データが一方向に流れる
+- **適用場面**: ドキュメント処理、ETL
+
+## stop_reason の活用
+
+| 値 | エージェントでの意味 |
+|:---|:------------------|
+| `end_turn` | タスク完了、ループを終了 |
+| `tool_use` | ツール実行が必要、ループを継続 |
+| `max_tokens` | トークン上限に到達、対策が必要 |
+| `pause_turn` | 長時間ターンの一時停止、再開可能 |
+
+## ガードレール
+
+エージェントの安全性と品質を確保するための機能:
+
+### 入力ガードレール
+
+- ユーザー入力を検証してから処理を開始
+- 有害なコンテンツやプロンプトインジェクションをブロック
+
+### 出力ガードレール
+
+- エージェントの出力を検証
+- 不適切な内容や誤った形式を検出
+
+### ツール実行の制限
+
+- 重要なツールの実行前に人間の承認を求める
+- ツールの使用回数を制限する
+- 影響の大きいアクションにはConfirmationステップを挿入
+
+## コンテキスト管理
+
+長時間のエージェントセッションでは、コンテキストウィンドウの管理が重要:
+
+- **Compaction** を使って会話履歴を要約
+- **Tool result clearing** で古いツール結果をクリア
+- **State artifacts** を設計し、セッション間でコンテキストを復元可能に
+- コンテキスト認識機能（Sonnet 4.6等）で残りトークンを追跡
+
+## Extended Thinkingとの併用
+
+エージェントでExtended Thinkingを有効にすると:
+
+- ツール選択の推論が向上
+- 複雑な計画策定が改善
+- Interleaved Thinking でツール呼び出し間の推論が可能
+
+## ベストプラクティス
+
+1. **シンプルに始める** -- まずシングルエージェントループで十分か検討する
+2. **ツールの説明を充実させる** -- Claudeはツールの `description` を読んで判断する
+3. **エラーハンドリング** -- ツール実行失敗時の適切な処理を実装する
+4. **リトライロジック** -- 一時的なエラーに対する再試行
+5. **ログと監視** -- エージェントの行動を記録し、分析可能にする
+6. **Human-in-the-loop** -- 重要な決定にはユーザー確認を求める
+7. **コスト管理** -- ループ回数やトークン使用量に上限を設ける
+8. **テスト** -- 多様なシナリオでエージェントの動作を検証する

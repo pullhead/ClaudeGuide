@@ -1,0 +1,19 @@
+{
+  "index": "公式ガイド",
+  "quickstart": "クイックスタート",
+  "models": "モデル概要",
+  "messages-api": "Messages API",
+  "vision": "Vision（画像入力）",
+  "extended-thinking": "Extended Thinking",
+  "tool-use": "Tool Use",
+  "structured-outputs": "構造化出力",
+  "prompt-engineering": "プロンプトエンジニアリング",
+  "prompt-caching": "Prompt Caching",
+  "batch-api": "Batch API",
+  "context-windows": "コンテキストウィンドウ",
+  "citations": "Citations",
+  "web-search": "Web Search",
+  "computer-use": "Computer Use",
+  "agent-skills": "Agent Skills",
+  "mcp": "MCP"
+}

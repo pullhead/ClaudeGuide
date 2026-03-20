@@ -1,0 +1,44 @@
+# Best Practice
+
+[Claude Code Best Practice](https://github.com/shanraisshan/claude-code-best-practice)
+
+Claude Code を最大限に活用するためのベストプラクティス集です。このセクションでは、[shanraisshan/claude-code-best-practice](https://github.com/shanraisshan/claude-code-best-practice) リポジトリの知見を体系的にまとめています。
+
+## 7つのコア機能
+
+Claude Code は以下の7つの主要コンセプトで構成されています。
+
+| 機能 | 配置場所 | 概要 |
+|------|----------|------|
+| **サブエージェント** | `.claude/agents/<name>.md` | 独立したコンテキストで動作する自律的アクター。カスタムツール、権限、モデル、メモリ、永続ID を持つ |
+| **コマンド** | `.claude/commands/<name>.md` | 既存コンテキストに注入される知識。ワークフローオーケストレーション用のプロンプトテンプレート |
+| **スキル** | `.claude/skills/<name>/SKILL.md` | 自動検出・プリロード可能な知識モジュール。コンテキストフォークと段階的開示に対応 |
+| **ワークフロー** | `.claude/commands/` | コマンド、エージェント、スキルを組み合わせたオーケストレーションパターン |
+| **Hooks** | `.claude/hooks/` | エージェントループ外で動作するイベントハンドラ（スクリプト、HTTP、プロンプト、エージェント） |
+| **MCPサーバー** | `.claude/settings.json`, `.mcp.json` | 外部ツール、データベース、API への Model Context Protocol 接続 |
+| **設定** | `.claude/settings.json` | 権限、モデル設定、出力スタイル、サンドボックス等の階層的設定システム |
+
+## 基本原則
+
+すべてのワークフローは共通のパターンに収束します：
+
+**Research → Plan → Execute → Review → Ship**
+
+### 重要なポイント
+
+- **計画を先に** — 実装前に必ずプランモードで設計する
+- **プロトタイプ重視** — 仕様書を書き過ぎるより、20〜30のプロトタイプを作る方がコスト効率が良い
+- **コンテキスト管理** — `CLAUDE.md` は1ファイル200行以内に抑える
+- **頻繁なコミット** — タスク完了時に最低でも1時間に1回コミットする
+- **シンプルに** — 小さなタスクには複雑なワークフローより素のClaude Codeが勝る場合がある
+
+## ページ一覧
+
+- [サブエージェント設計](/best-practice/subagents) — 委譲パターン、並列作業、コンテキスト分離
+- [コマンド設計](/best-practice/commands) — カスタムコマンド、ワークフロー自動化
+- [スキル設計](/best-practice/skills) — スキル作成、段階的開示、管理手法
+- [ワークフロー](/best-practice/workflows) — 8つの開発ワークフローパターン比較
+- [Hooks](/best-practice/hooks) — フック設計パターン、セキュリティ
+- [MCPサーバー](/best-practice/mcp-servers) — MCP接続設計、外部ツール統合
+- [設定ファイル](/best-practice/settings) — 設定階層、CLAUDE.md 運用
+- [Tips & Tricks](/best-practice/tips) — 75以上の実践的テクニック

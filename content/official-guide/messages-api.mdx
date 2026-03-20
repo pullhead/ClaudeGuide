@@ -1,0 +1,108 @@
+# Messages API
+
+[Text Generation](https://docs.anthropic.com/en/docs/build-with-claude/text-generation)
+
+## 概要
+
+Messages APIはClaudeとの対話の基本インターフェースである。自然言語でプロンプトを記述し、テキスト応答を受け取る。
+
+## 主なユースケース
+
+| 機能 | 説明 |
+|:-----|:-----|
+| テキスト要約 | 長文コンテンツの要点抽出 |
+| コンテンツ生成 | ブログ、メール、マーケティングコピーの作成 |
+| データ抽出 | 非構造化テキストから構造化データを抽出 |
+| 質問応答 | カスタマーサポート、教育AIチューター |
+| 翻訳 | 多言語間のテキスト翻訳 |
+| コード生成・説明 | コードレビュー、ボイラープレート生成 |
+| 対話・会話 | コンテキストを理解した対話システム |
+
+## 基本的なリクエスト
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {"role": "user", "content": "Pythonでフィボナッチ数列を実装してください。"}
+    ],
+)
+print(message.content[0].text)
+```
+
+## 必須パラメータ
+
+| パラメータ | 型 | 説明 |
+|:----------|:---|:-----|
+| `model` | string | 使用するモデルのID |
+| `max_tokens` | integer | 出力の最大トークン数 |
+| `messages` | array | 会話メッセージの配列 |
+
+## システムプロンプト
+
+`system` パラメータでClaudeの振る舞いを指定できる。
+
+```python
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    system="あなたは親切な日本語教師です。初心者にもわかりやすく説明してください。",
+    messages=[
+        {"role": "user", "content": "「侘び寂び」とは何ですか？"}
+    ],
+)
+```
+
+## マルチターン会話
+
+`messages` 配列に `user` と `assistant` のメッセージを交互に含めることで、会話の文脈を維持する。
+
+```python
+messages = [
+    {"role": "user", "content": "東京のおすすめスポットは？"},
+    {"role": "assistant", "content": "東京には多くの見どころがあります。浅草寺、東京タワー..."},
+    {"role": "user", "content": "その中で子供連れに最適なのは？"},
+]
+
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=messages,
+)
+```
+
+## ストリーミング
+
+リアルタイムでレスポンスを受け取る場合はストリーミングを使用する。
+
+```python
+with client.messages.stream(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "短い物語を書いてください。"}],
+) as stream:
+    for text in stream.text_stream:
+        print(text, end="", flush=True)
+```
+
+## stop_reason の種類
+
+| 値 | 意味 |
+|:---|:-----|
+| `end_turn` | モデルが応答を完了 |
+| `max_tokens` | トークン上限に到達 |
+| `tool_use` | ツール呼び出しが必要 |
+| `pause_turn` | 長時間のターンを一時停止（再開可能） |
+
+## ベストプラクティス
+
+- プロンプトは自然言語で具体的に記述する
+- 長い文書はクエリの前に配置する
+- `system` プロンプトで役割・制約を明確にする
+- ストリーミングを使ってUXを改善する
+- [プロンプトエンジニアリング](/official-guide/prompt-engineering)のテクニックでベースラインを改善する

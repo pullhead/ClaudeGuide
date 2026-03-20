@@ -1,0 +1,178 @@
+# Hooks ベストプラクティス
+
+[Hooks - Claude Code Best Practice](https://github.com/shanraisshan/claude-code-best-practice)
+
+## Hooks とは
+
+Hooks は、**エージェントループの外側で動作するユーザー定義のイベントハンドラ**です。スクリプト、HTTPリクエスト、プロンプト、エージェントをトリガーとして、特定のイベント発生時に自動実行されます。
+
+**配置場所:** `.claude/hooks/`
+
+## フックの種類
+
+Claude Code には以下のフックタイプがあります。
+
+### PreToolUse
+
+ツールが呼び出される**前**に実行されるフック。
+
+**主な用途：**
+- スキルの利用状況を計測する
+- 特定のツール呼び出しをインターセプトする
+- 安全でない操作をブロックする
+
+```javascript
+// .claude/hooks/pre-tool-use.js
+// スキル利用状況のトラッキング例
+export default function preToolUse(event) {
+  const { tool, args } = event;
+  // 利用統計をログに記録
+  logUsage(tool, args);
+}
+```
+
+### PostToolUse
+
+ツールが呼び出された**後**に実行されるフック。
+
+**主な用途：**
+- コード自動フォーマット
+- 生成物の後処理
+- CI 失敗を事前に防ぐ
+
+```javascript
+// .claude/hooks/post-tool-use.js
+// 自動フォーマット例
+export default function postToolUse(event) {
+  const { tool, result } = event;
+  if (tool === 'write_file' && result.path.endsWith('.ts')) {
+    // prettier でフォーマット
+    execSync(`npx prettier --write ${result.path}`);
+  }
+}
+```
+
+> Claude は整形されたコードを生成しますが、最後の10%のフォーマット調整をフックが担当することで、CI失敗を回避できます。
+
+### Stop フック
+
+Claude のターン完了時に実行されるフック。
+
+**主な用途：**
+- 出力の検証を促す
+- Claude に作業継続を促す
+- 最終チェックの自動実行
+
+## セキュリティパターン
+
+### パーミッションルーティング
+
+パーミッションリクエストを Opus モデルにルーティングし、攻撃パターンのスキャンと安全な操作の自動承認を行います。
+
+```
+ユーザーリクエスト
+    ↓
+PreToolUse フック
+    ↓
+Opus による安全性判定
+    ├── 安全 → 自動承認
+    └── 危険 → ユーザーに確認
+```
+
+このパターンにより、セキュリティを維持しながら操作の流れを妨げません。
+
+### オンデマンドフック（スキル内フック）
+
+スキルに組み込むことで、必要な時だけ有効になるフックです。
+
+#### `/careful` — 破壊的コマンドのブロック
+
+```markdown
+# /careful スキル
+このスキルが有効な間、以下のコマンドをブロックする：
+- `rm -rf`
+- `git push --force`
+- `DROP TABLE`
+- `kubectl delete`
+```
+
+#### `/freeze` — ディレクトリ外の編集をブロック
+
+```markdown
+# /freeze スキル
+指定ディレクトリ外のファイル編集をブロックする。
+対象ディレクトリ: $ARGUMENTS
+```
+
+これらのフックは機能を無効化するのではなく、**選択的な制約**を提供します。
+
+## 実践的なフック例
+
+### 自動フォーマットフック
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "write_file",
+        "command": "npx prettier --write $FILE_PATH"
+      }
+    ]
+  }
+}
+```
+
+### コミット前チェック
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "bash",
+        "command": "node .claude/hooks/validate-command.js"
+      }
+    ]
+  }
+}
+```
+
+### スキル利用状況の計測
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/track-usage.js"
+      }
+    ]
+  }
+}
+```
+
+## フック設計の原則
+
+### 1. 軽量に保つ
+
+フックはエージェントループの外で実行されるため、重い処理はパフォーマンスに影響します。非同期処理やバックグラウンド実行を活用してください。
+
+### 2. 失敗に強くする
+
+フックの失敗が Claude のワークフロー全体を止めないよう、適切なエラーハンドリングを実装します。
+
+### 3. 段階的に導入する
+
+最初から多数のフックを設定するのではなく、必要に応じて段階的に追加します。
+
+## ベストプラクティスまとめ
+
+| フックタイプ | 用途 | 例 |
+|-------------|------|-----|
+| PreToolUse | インターセプト・計測 | スキル利用追跡、危険操作ブロック |
+| PostToolUse | 後処理・整形 | 自動フォーマット、リント実行 |
+| Stop | 継続・検証 | 出力チェック、作業継続促進 |
+| オンデマンド | 状況に応じた制約 | `/careful`, `/freeze` |
+| パーミッション | セキュリティ | Opus ルーティング、自動承認 |

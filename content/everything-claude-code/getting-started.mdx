@@ -1,0 +1,181 @@
+# セットアップ・基本操作
+
+[Everything Claude Code - Getting Started](https://github.com/affaan-m/everything-claude-code)
+
+Claude Codeのインストールから基本的な使い方までを解説します。
+
+## Claude Codeのインストール
+
+### macOS / Linux
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+### Homebrew（macOS）
+
+```bash
+brew install --cask claude-code
+```
+
+### Windows
+
+```powershell
+irm https://claude.ai/install.ps1 | iex
+```
+
+### WinGet（Windows）
+
+```powershell
+winget install Anthropic.ClaudeCode
+```
+
+### npm（非推奨）
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+> npm経由のインストールは非推奨となっています。上記のネイティブインストーラーを使用してください。
+
+## 初回起動と認証
+
+インストール後、ターミナルで `claude` と入力して起動します：
+
+```bash
+claude
+```
+
+初回起動時にAnthropicアカウントでの認証が求められます。ブラウザが自動的に開くので、ログインして認証を完了してください。
+
+## 基本的なコマンド
+
+### 対話モード
+
+```bash
+claude                    # 対話モードで起動
+claude "質問やタスク"       # ワンショットで実行
+```
+
+### よく使うスラッシュコマンド
+
+対話モード内で使えるスラッシュコマンドです：
+
+```bash
+/help                     # ヘルプを表示
+/clear                    # コンテキストをクリア（無料リセット）
+/compact                  # コンテキストを圧縮
+/cost                     # トークン使用量とコストを確認
+/model                    # 使用モデルを切り替え
+/bug                      # バグレポートを送信
+```
+
+### ファイル操作
+
+Claude Codeはターミナルから直接ファイルを読み書きできます：
+
+```bash
+claude "このプロジェクトの構造を説明して"
+claude "src/index.ts のバグを修正して"
+claude "テストを書いて実行して"
+```
+
+### Git操作
+
+自然言語でGit操作を指示できます：
+
+```bash
+claude "変更をコミットして"
+claude "PRを作成して"
+claude "mainブランチからの差分を説明して"
+```
+
+## Everything Claude Code（ECC）のインストール
+
+Claude Codeの機能を大幅に拡張するECCをインストールする方法です。
+
+### プラグインとして導入（推奨）
+
+```bash
+/plugin marketplace add affaan-m/everything-claude-code
+/plugin install everything-claude-code@everything-claude-code
+```
+
+または `~/.claude/settings.json` に直接追加します：
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "everything-claude-code": {
+      "source": {
+        "source": "github",
+        "repo": "affaan-m/everything-claude-code"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "everything-claude-code@everything-claude-code": true
+  }
+}
+```
+
+### ルールのインストール
+
+プラグインシステムではルールが自動配布されないため、手動でインストールします：
+
+```bash
+git clone https://github.com/affaan-m/everything-claude-code.git
+cd everything-claude-code
+
+# 言語スタックを指定してインストール
+./install.sh typescript              # 単一スタック
+./install.sh typescript python golang  # 複数スタック
+```
+
+### 手動インストール
+
+```bash
+git clone https://github.com/affaan-m/everything-claude-code.git
+
+# エージェントをコピー
+cp everything-claude-code/agents/*.md ~/.claude/agents/
+
+# 共通ルールとスキルをコピー
+cp -r everything-claude-code/rules/common/* ~/.claude/rules/
+cp -r everything-claude-code/rules/typescript/* ~/.claude/rules/
+cp everything-claude-code/commands/*.md ~/.claude/commands/
+cp -r everything-claude-code/skills/* ~/.claude/skills/
+```
+
+## パッケージマネージャーの設定
+
+ECCは使用するパッケージマネージャーを自動検出しますが、明示的に設定することもできます：
+
+```bash
+# 環境変数で設定
+export CLAUDE_PACKAGE_MANAGER=pnpm
+
+# コマンドで対話的に設定
+/setup-pm
+
+# スクリプトで設定
+node scripts/setup-package-manager.js --global pnpm
+node scripts/setup-package-manager.js --project bun
+```
+
+検出の優先順位は以下の通りです：
+
+1. 環境変数 `CLAUDE_PACKAGE_MANAGER`
+2. プロジェクト設定 `.claude/package-manager.json`
+3. `package.json` の `packageManager` フィールド
+4. ロックファイル（package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb）
+5. グローバル設定 `~/.claude/package-manager.json`
+6. フォールバック（最初に見つかったマネージャー）
+
+## バージョン確認
+
+```bash
+claude --version
+```
+
+ECC の全機能を使うには、Claude Code CLI v2.1.0 以上が必要です。

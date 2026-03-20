@@ -1,0 +1,11 @@
+{
+  "index": "Best Practice",
+  "subagents": "サブエージェント",
+  "commands": "コマンド設計",
+  "skills": "スキル設計",
+  "workflows": "ワークフロー",
+  "hooks": "Hooks",
+  "mcp-servers": "MCPサーバー",
+  "settings": "設定ファイル",
+  "tips": "Tips & Tricks"
+}

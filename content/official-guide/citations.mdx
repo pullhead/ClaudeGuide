@@ -1,0 +1,156 @@
+# Citations
+
+[Citations](https://docs.anthropic.com/en/docs/build-with-claude/citations)
+
+## 概要
+
+Citations機能は、Claudeがドキュメントに基づいて回答する際に、情報のソースを正確に引用する機能。レスポンス内の各主張に対して、元のドキュメントの具体的な位置を参照できる。
+
+## 基本的な使い方
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "text",
+                        "media_type": "text/plain",
+                        "data": "草は緑色です。空は青色です。",
+                    },
+                    "title": "サンプル文書",
+                    "citations": {"enabled": True},
+                },
+                {"type": "text", "text": "草と空の色は何ですか？"},
+            ],
+        }
+    ],
+)
+```
+
+## 仕組み
+
+1. **ドキュメントを提供し、citationsを有効にする** -- `citations.enabled = true`
+2. **ドキュメントが処理される** -- テキストが文単位にチャンクされる
+3. **Claudeが引用付きで回答する** -- 各主張にソースの位置情報が付与される
+
+## 対応ドキュメントタイプ
+
+| タイプ | 用途 | チャンク | 引用形式 |
+|:-------|:-----|:--------|:---------|
+| Plain text | 単純なテキスト | 文単位 | 文字インデックス（0始まり） |
+| PDF | PDFファイル | 文単位 | ページ番号（1始まり） |
+| Custom content | リスト、トランスクリプト等 | チャンクなし（ブロック単位） | ブロックインデックス（0始まり） |
+
+### Plain text
+
+```python
+{
+    "type": "document",
+    "source": {
+        "type": "text",
+        "media_type": "text/plain",
+        "data": "テキスト内容...",
+    },
+    "title": "文書タイトル",
+    "citations": {"enabled": True},
+}
+```
+
+### PDF
+
+```python
+{
+    "type": "document",
+    "source": {
+        "type": "base64",
+        "media_type": "application/pdf",
+        "data": base64_encoded_pdf,
+    },
+    "citations": {"enabled": True},
+}
+```
+
+### Custom content（引用粒度を制御）
+
+```python
+{
+    "type": "document",
+    "source": {
+        "type": "content",
+        "content": [
+            {"type": "text", "text": "第1チャンク"},
+            {"type": "text", "text": "第2チャンク"},
+        ],
+    },
+    "citations": {"enabled": True},
+}
+```
+
+## レスポンスの構造
+
+引用有効時、レスポンスはテキストブロックと引用の組み合わせで構成される。
+
+```json
+{
+  "content": [
+    {"type": "text", "text": "文書によると、"},
+    {
+      "type": "text",
+      "text": "草は緑色です",
+      "citations": [
+        {
+          "type": "char_location",
+          "cited_text": "草は緑色です。",
+          "document_index": 0,
+          "start_char_index": 0,
+          "end_char_index": 8
+        }
+      ]
+    }
+  ]
+}
+```
+
+## プロンプトベースとの比較
+
+Citations機能のメリット:
+
+- **コスト削減** -- `cited_text` は出力トークンにカウントされない
+- **引用の信頼性** -- 引用が常に有効なポインタを含むことが保証される
+- **引用の品質向上** -- プロンプトベースよりも関連性の高い引用が得られる
+
+## トークンコスト
+
+- 入力トークンが若干増加（システムプロンプトとチャンク処理のため）
+- `cited_text` は**出力トークンにカウントされない**
+- 後続のターンで引用を返す際も `cited_text` は入力トークンにカウントされない
+
+## Prompt Cachingとの併用
+
+ドキュメントに `cache_control` を適用することで、引用とキャッシュを組み合わせて利用可能。
+
+```python
+{
+    "type": "document",
+    "source": {"type": "text", "media_type": "text/plain", "data": long_document},
+    "citations": {"enabled": True},
+    "cache_control": {"type": "ephemeral"},
+}
+```
+
+## 注意事項
+
+- リクエスト内の全ドキュメントで citations を有効/無効を統一する必要がある
+- 画像引用は現在未サポート
+- **Structured Outputs とは互換性がない** -- 同時使用は400エラーになる
+- `title` と `context` フィールドは引用対象にならない（モデルには渡されるが引用元にならない）

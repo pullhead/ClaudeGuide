@@ -1,0 +1,70 @@
+# モデル概要
+
+[Models Overview](https://docs.anthropic.com/en/docs/about-claude/models)
+
+## 最新モデル比較
+
+| 特徴 | Claude Opus 4.6 | Claude Sonnet 4.6 | Claude Haiku 4.5 |
+|:-----|:----------------|:------------------|:-----------------|
+| **用途** | 最高知性。エージェント・コーディング | 速度と知性のバランス | 最速。準フロンティア知性 |
+| **API ID** | `claude-opus-4-6` | `claude-sonnet-4-6` | `claude-haiku-4-5` |
+| **入力料金** | $5 / MTok | $3 / MTok | $1 / MTok |
+| **出力料金** | $25 / MTok | $15 / MTok | $5 / MTok |
+| **コンテキスト** | 1M tokens | 1M tokens | 200K tokens |
+| **最大出力** | 128K tokens | 64K tokens | 64K tokens |
+| **Extended Thinking** | 対応（Adaptive） | 対応 | 対応 |
+| **速度** | 中程度 | 高速 | 最速 |
+
+## モデル選択ガイド
+
+### Claude Opus 4.6 を選ぶ場面
+
+- 最も複雑なタスク（高度な推論、コーディング）
+- エージェント構築
+- 精度が最優先の場面
+- Adaptive Thinking による自動的な思考配分
+
+### Claude Sonnet 4.6 を選ぶ場面
+
+- 速度とコストのバランスが重要
+- 日常的なAPI利用
+- Extended Thinking で十分な推論力が必要
+- プロダクション環境での汎用利用
+
+### Claude Haiku 4.5 を選ぶ場面
+
+- レイテンシが最優先
+- 大量処理・リアルタイム応答
+- コスト効率を重視
+- シンプルなタスク（分類、要約、チャット）
+
+## レガシーモデル
+
+以下のモデルも引き続き利用可能だが、新しいモデルへの移行を推奨。
+
+| モデル | API ID | 入力料金 | コンテキスト |
+|:-------|:-------|:---------|:------------|
+| Claude Sonnet 4.5 | `claude-sonnet-4-5` | $3 / MTok | 1M (200K default) |
+| Claude Opus 4.5 | `claude-opus-4-5` | $5 / MTok | 200K |
+| Claude Opus 4.1 | `claude-opus-4-1` | $15 / MTok | 200K |
+| Claude Sonnet 4 | `claude-sonnet-4-0` | $3 / MTok | 1M (200K default) |
+| Claude Opus 4 | `claude-opus-4-0` | $15 / MTok | 200K |
+
+## プラットフォーム対応
+
+全モデルは以下のプラットフォームで利用可能:
+
+- **Anthropic API** -- 直接利用
+- **AWS Bedrock** -- AWSインフラ経由
+- **Google Vertex AI** -- GCPインフラ経由
+
+## 知識カットオフ
+
+- **Reliable knowledge cutoff**: モデルの知識が最も信頼できる日付
+- **Training data cutoff**: 訓練データに含まれる最新の日付
+- 例: Opus 4.6 は Reliable = 2025年5月、Training = 2025年8月
+
+## ヒント
+
+- Models APIを使えば、利用可能なモデルの能力やトークン上限をプログラムで取得できる
+- スナップショット日付（例: `20240620`）が同じモデルは、全プラットフォームで同一の挙動を保証する

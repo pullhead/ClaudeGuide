@@ -1,0 +1,27 @@
+{
+  "index": {
+    "title": "ホーム",
+    "type": "page",
+    "theme": {
+      "layout": "full"
+    }
+  },
+  "certified": {
+    "title": "認定資格 (CCA)"
+  },
+  "official-guide": {
+    "title": "公式ガイド"
+  },
+  "everything-claude-code": {
+    "title": "Everything Claude Code"
+  },
+  "best-practice": {
+    "title": "Best Practice"
+  },
+  "pullhead": {
+    "title": "Pullhead"
+  },
+  "release-notes": {
+    "title": "リリースノート"
+  }
+}

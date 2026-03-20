@@ -1,0 +1,223 @@
+# Tips & Tricks
+
+[Everything Claude Code - Tips](https://github.com/affaan-m/everything-claude-code)
+
+Claude Codeを日常の開発で効果的に使うための実践的なTipsを集めました。
+
+## コンテキスト管理
+
+### `/clear` を積極的に使う
+
+無関係なタスクに移る前に `/clear` でコンテキストをリセットしましょう。コストゼロで新鮮なコンテキストを確保できます。
+
+```bash
+# タスクAが完了
+/clear
+# タスクBを開始
+```
+
+### コンパクションのタイミングを見極める
+
+自動コンパクション（コンテキストの95%使用時）に頼らず、論理的な区切りで手動コンパクションを実行します：
+
+```bash
+# リサーチ完了 → 実装開始前にコンパクション
+/compact
+
+# 機能実装完了 → 次の機能の前にコンパクション
+/compact
+```
+
+**重要:** 実装の途中ではコンパクションしないでください。変数名やファイルパスなどの重要なコンテキストが失われます。
+
+### MCPの数を絞る
+
+各MCPのツール説明がトークンを消費します。200kのコンテキストウィンドウが70kまで縮小することもあります。
+
+```json
+{
+  "disabledMcpServers": ["使わないサーバー1", "使わないサーバー2"]
+}
+```
+
+プロジェクトごとに必要なMCPだけを有効にしましょう。
+
+## モデルの使い分け
+
+### 80/20ルール
+
+タスクの80%はSonnetで十分です。Opusは複雑なアーキテクチャ設計や深い推論が必要な場合にのみ使用します。
+
+```bash
+/model sonnet       # 日常の実装・テスト・デバッグ
+/model opus         # 複雑な設計・難しいバグの分析
+```
+
+### サブエージェントにはHaikuを
+
+レビューや簡単な分析はHaikuで十分です。コストを約90%削減できます。
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  }
+}
+```
+
+## CLAUDE.mdの書き方
+
+### 具体的な禁止事項を書く
+
+「良いコードを書いて」より「`any`型禁止、`console.log`禁止」の方が効果的です。
+
+```markdown
+## 禁止事項
+- `any` 型の使用禁止（`unknown` を使用）
+- `console.log` のコミット禁止
+- インラインスタイルの使用禁止
+- `var` の使用禁止（`const`/`let` を使用）
+```
+
+### ディレクトリ構造を明記する
+
+Claude Codeがファイルの適切な配置場所を判断できるようになります。
+
+```markdown
+## ディレクトリ構造
+- `src/app/` - Next.js App Router ページ
+- `src/components/ui/` - shadcn/uiコンポーネント
+- `src/lib/` - ユーティリティ関数
+- `src/hooks/` - カスタムフック
+- `src/types/` - TypeScript型定義
+```
+
+### ローカル設定を活用する
+
+チーム共有の `CLAUDE.md` と個人用の `CLAUDE.local.md` を使い分けます。
+
+```markdown
+# CLAUDE.local.md（.gitignoreに追加）
+
+## 個人設定
+- テスト実行前にデータベースをリセットする
+- コミットメッセージに名前を含める
+```
+
+## Git操作のTips
+
+### 自然言語でGit操作
+
+```bash
+claude "この変更をわかりやすいメッセージでコミットして"
+claude "mainブランチとの差分を要約して"
+claude "PRを作成して。タイトルと説明は変更内容から自動生成して"
+```
+
+### worktreeで並列作業
+
+複数の機能を同時に開発する場合、worktreeを活用します：
+
+```bash
+git worktree add ../feature-auth feature/auth
+git worktree add ../feature-payment feature/payment
+
+# 別ターミナルでそれぞれのworktreeでclaude起動
+```
+
+## デバッグのTips
+
+### エラーメッセージをそのまま貼る
+
+エラーメッセージを自分で解釈するより、そのまま貼った方がClaude Codeの精度が上がります。
+
+```bash
+claude "このエラーを修正して: [エラーメッセージをペースト]"
+```
+
+### ビルドエラーの自動修正
+
+```bash
+/build-fix
+```
+
+build-error-resolverエージェントがビルドエラーを分析して自動修正します。
+
+## テストのTips
+
+### TDDワークフロー
+
+```bash
+/tdd
+```
+
+テストを先に書く習慣をClaude Codeに強制できます。バグの再現テストにも有効です。
+
+### カバレッジの確認
+
+```bash
+/test-coverage
+```
+
+80%以上のカバレッジを維持するための分析と提案が得られます。
+
+## セキュリティのTips
+
+### 定期的なスキャン
+
+```bash
+/security-scan
+```
+
+OWASP Top 10に基づく脆弱性スキャンを定期的に実行しましょう。
+
+### MCP設定の監査
+
+```bash
+npx ecc-agentshield scan
+```
+
+MCPサーバーの設定、フックの安全性、シークレットの漏洩をチェックします。
+
+## パフォーマンスのTips
+
+### 思考トークンを制限
+
+```json
+{
+  "env": {
+    "MAX_THINKING_TOKENS": "10000"
+  }
+}
+```
+
+単純なタスクでは思考トークンを制限してレスポンスを高速化します。
+
+### セッションの区切り
+
+長時間のセッションではコンテキストが膨張してパフォーマンスが低下します。論理的な区切りで `/clear` や `/compact` を実行しましょう。
+
+## トラブルシューティング
+
+### コンテキストウィンドウが狭い
+
+MCPサーバーの数を確認してください。不要なMCPを `disabledMcpServers` で無効化します。
+
+### フックが動作しない
+
+`plugin.json` に `hooks` を宣言していないか確認してください。Claude Code v2.1以降では `hooks/hooks.json` が自動ロードされます。
+
+### モデル選択エラー
+
+Claude Code CLI v2.1.0以上が必要です：
+
+```bash
+claude --version
+```
+
+### 応答が遅い
+
+1. 思考トークンを制限する
+2. 不要なMCPを無効化する
+3. `/compact` でコンテキストを圧縮する
+4. `/clear` で新しいセッションを開始する

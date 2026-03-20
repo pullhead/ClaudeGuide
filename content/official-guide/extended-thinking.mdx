@@ -1,0 +1,139 @@
+# Extended Thinking
+
+[Extended Thinking](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking)
+
+## 概要
+
+Extended Thinkingは、Claudeに段階的な推論プロセスを与える機能。複雑なタスクで最終回答の前に内部的な思考を行い、回答の質を大幅に向上させる。
+
+## 対応モデル
+
+- **Claude Opus 4.6** -- Adaptive Thinking のみ（推奨）
+- **Claude Sonnet 4.6** -- Manual / Adaptive 両対応
+- **Claude Opus 4.5 / 4.1 / 4** -- Manual対応
+- **Claude Sonnet 4.5 / 4** -- Manual対応
+- **Claude Haiku 4.5** -- Manual対応
+
+## 基本的な使い方
+
+### Manual Thinking（Sonnet 4.6 等）
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=16000,
+    thinking={"type": "enabled", "budget_tokens": 10000},
+    messages=[
+        {"role": "user", "content": "素数pがp mod 4 == 3を満たすものは無限に存在しますか？"}
+    ],
+)
+
+for block in response.content:
+    if block.type == "thinking":
+        print(f"思考: {block.thinking}")
+    elif block.type == "text":
+        print(f"回答: {block.text}")
+```
+
+### Adaptive Thinking（Opus 4.6 推奨）
+
+```python
+response = client.messages.create(
+    model="claude-opus-4-6",
+    max_tokens=16000,
+    thinking={"type": "adaptive"},
+    messages=[
+        {"role": "user", "content": "この問題を解いてください。"}
+    ],
+)
+```
+
+## 主要パラメータ
+
+| パラメータ | 説明 |
+|:----------|:-----|
+| `type` | `"enabled"`（手動）または `"adaptive"`（Opus 4.6推奨） |
+| `budget_tokens` | 思考の最大トークン数（`max_tokens` 未満）。Opus 4.6では非推奨 |
+| `display` | `"summarized"`（デフォルト）または `"omitted"` |
+
+## 思考の表示制御
+
+### summarized（デフォルト）
+
+Claude 4モデルは要約された思考を返す。課金は**フル思考トークン**に対して行われる（要約トークンではない）。
+
+### omitted
+
+思考フィールドが空で返される。ストリーミングのTTFT（Time-to-First-Text-Token）が高速化される。ユーザーに思考を表示しないパイプライン向け。
+
+```python
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=16000,
+    thinking={
+        "type": "enabled",
+        "budget_tokens": 10000,
+        "display": "omitted",
+    },
+    messages=[{"role": "user", "content": "27 * 453 は？"}],
+)
+```
+
+## ストリーミング
+
+```python
+with client.messages.stream(
+    model="claude-sonnet-4-6",
+    max_tokens=16000,
+    thinking={"type": "enabled", "budget_tokens": 10000},
+    messages=[{"role": "user", "content": "1071と462の最大公約数は？"}],
+) as stream:
+    for event in stream:
+        if event.type == "content_block_delta":
+            if event.delta.type == "thinking_delta":
+                print(event.delta.thinking, end="", flush=True)
+            elif event.delta.type == "text_delta":
+                print(event.delta.text, end="", flush=True)
+```
+
+## Tool Use との併用
+
+Extended ThinkingはTool Useと組み合わせ可能。ただし以下の制約がある。
+
+- `tool_choice` は `auto`（デフォルト）または `none` のみ対応
+- ツール利用中は `thinking` ブロックをAPIに返す**必須**
+- ツール利用ループ中の思考の切り替えは不可
+
+```python
+# ツール呼び出し後、thinkingブロックを含めて返す
+continuation = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=16000,
+    thinking={"type": "enabled", "budget_tokens": 10000},
+    tools=[weather_tool],
+    messages=[
+        {"role": "user", "content": "パリの天気は？"},
+        {"role": "assistant", "content": [thinking_block, tool_use_block]},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool_use_block.id, "content": "22°C"}]},
+    ],
+)
+```
+
+## Interleaved Thinking
+
+Claude 4モデルでは、ツール呼び出し間に思考を挿入できる。
+
+- **Opus 4.6**: Adaptive Thinkingで自動対応
+- **Sonnet 4.6 / 他のClaude 4モデル**: `interleaved-thinking-2025-05-14` ベータヘッダーが必要
+
+## ベストプラクティス
+
+1. **マルチターンでthinkingブロックを保持する** -- ツール利用時とコンテキスト継続に必須
+2. **Opus 4.6ではAdaptive Thinkingを使う** -- 手動設定より推奨
+3. **budget_tokensを適切に設定する** -- 複雑な問題ほど大きな予算が有効（32K超は使い切られない場合あり）
+4. **display: "omitted" を活用する** -- 思考を表示しない場合のストリーミング高速化
+5. **課金はフル思考トークンに対して** -- 要約/非表示でも課金額は変わらない

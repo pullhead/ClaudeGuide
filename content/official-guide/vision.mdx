@@ -1,0 +1,158 @@
+# Vision（画像入力）
+
+[Vision](https://docs.anthropic.com/en/docs/build-with-claude/vision)
+
+## 概要
+
+Claudeは画像を理解・分析するマルチモーダル能力を持つ。画像を入力として渡し、内容の説明、比較、テキスト抽出などが可能。
+
+## 画像の送信方法
+
+画像は3つの方法で送信できる。
+
+### 1. Base64エンコード
+
+```python
+import anthropic
+import base64
+import httpx
+
+client = anthropic.Anthropic()
+
+image_data = base64.standard_b64encode(
+    httpx.get("https://example.com/image.jpg").content
+).decode("utf-8")
+
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": image_data,
+                    },
+                },
+                {"type": "text", "text": "この画像を説明してください。"},
+            ],
+        }
+    ],
+)
+```
+
+### 2. URL指定
+
+```python
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "url",
+                        "url": "https://example.com/image.jpg",
+                    },
+                },
+                {"type": "text", "text": "この画像を説明してください。"},
+            ],
+        }
+    ],
+)
+```
+
+### 3. Files API（推奨：繰り返し利用時）
+
+ファイルを一度アップロードし、`file_id` で参照する。マルチターン会話では毎回Base64を再送する必要がなく、ペイロードが軽量に保たれる。
+
+```python
+# アップロード
+with open("image.jpg", "rb") as f:
+    file_upload = client.beta.files.upload(file=("image.jpg", f, "image/jpeg"))
+
+# 参照
+message = client.beta.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    betas=["files-api-2025-04-14"],
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {"type": "file", "file_id": file_upload.id},
+                },
+                {"type": "text", "text": "この画像を説明してください。"},
+            ],
+        }
+    ],
+)
+```
+
+## 制限事項とベストプラクティス
+
+### サイズ制限
+
+- **対応フォーマット**: JPEG, PNG, GIF, WebP
+- **最大ファイルサイズ**: API 5MB / claude.ai 10MB
+- **画像数上限**: API 600枚（200Kモデルは100枚）/ claude.ai 20枚
+- **最大解像度**: 8000x8000 px（20枚超の場合は2000x2000 px）
+
+### パフォーマンス最適化
+
+- 長辺1568px以内にリサイズすると、TTFT（Time-to-First-Token）が改善される
+- リサイズされない最適サイズ: 1092x1092（1:1）、951x1268（3:4）など
+- 200px未満の極小画像は品質が低下する可能性がある
+
+### トークンコスト算出
+
+リサイズ不要な場合の概算式:
+
+```
+tokens = (width px * height px) / 750
+```
+
+| 画像サイズ | トークン数 | コスト目安（Sonnet 4.6） |
+|:----------|:----------|:----------------------|
+| 200x200 | ~54 | ~$0.00016 |
+| 1000x1000 | ~1,334 | ~$0.004 |
+| 1092x1092 | ~1,590 | ~$0.0048 |
+
+### 注意点
+
+- 画像は質問文の**前**に配置するのがベスト
+- 複数画像の場合は「Image 1:」「Image 2:」とラベル付けする
+- Claudeは人物の特定はできない（利用規約上禁止）
+- 空間推論（時計の読み取り等）は苦手
+- AI生成画像の判別はできない
+- 画像の生成・編集はできない（理解のみ）
+
+## 複数画像の比較
+
+```python
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Image 1:"},
+                {"type": "image", "source": {"type": "url", "url": "https://example.com/img1.jpg"}},
+                {"type": "text", "text": "Image 2:"},
+                {"type": "image", "source": {"type": "url", "url": "https://example.com/img2.jpg"}},
+                {"type": "text", "text": "これらの画像の違いを説明してください。"},
+            ],
+        }
+    ],
+)
+```

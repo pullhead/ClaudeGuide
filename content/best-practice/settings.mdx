@@ -1,0 +1,172 @@
+# 設定ファイル階層
+
+[Settings - Claude Code Best Practice](https://github.com/shanraisshan/claude-code-best-practice)
+
+## 設定の全体像
+
+Claude Code は階層的な設定システムを採用しています。複数の設定ファイルが異なるスコープで動作し、柔軟なカスタマイズを可能にします。
+
+## 設定ファイルの階層
+
+```
+グローバル（全プロジェクト共通）
+├── ~/.claude/settings.json          # グローバル設定
+├── ~/.claude/CLAUDE.md              # グローバルメモリ
+└── ~/.claude/rules/                 # グローバルルール
+
+プロジェクト（リポジトリ単位）
+├── .claude/settings.json            # プロジェクト設定
+├── CLAUDE.md                        # プロジェクトメモリ
+├── .claude/rules/                   # プロジェクトルール
+└── .mcp.json                        # MCP設定
+
+サブディレクトリ（モノレポ対応）
+├── packages/frontend/CLAUDE.md      # フロントエンド固有
+├── packages/backend/CLAUDE.md       # バックエンド固有
+└── packages/shared/CLAUDE.md        # 共有ライブラリ固有
+```
+
+## CLAUDE.md の運用
+
+### 200行ルール
+
+CLAUDE.md は**1ファイル200行以内**に抑えます。理想は60行程度です。長すぎるとモデルがルールを無視する傾向が出ます。
+
+```markdown
+<!-- 良い CLAUDE.md の例（簡潔） -->
+# プロジェクトルール
+
+## 技術スタック
+- TypeScript + React + Next.js
+- テスト: Vitest + Playwright
+- DB: PostgreSQL + Prisma
+
+## コーディング規約
+- 関数コンポーネントのみ使用
+- エラーは Result 型で処理
+- API レスポンスは zod でバリデーション
+
+## テスト
+- `pnpm test` で全テスト実行
+- `pnpm test:e2e` でE2Eテスト
+```
+
+### 条件付きタグ
+
+ドメイン固有のルールは `<important if="...">` タグで囲むことで、関連するコンテキストでのみ強調されます。長い CLAUDE.md でルールが無視されるのを防ぎます。
+
+```markdown
+<important if="editing authentication code">
+認証コードの変更時は必ず以下を確認：
+- CSRF トークンの検証
+- セッションの有効期限設定
+- ログアウト時のトークン無効化
+</important>
+
+<important if="modifying database schema">
+スキーマ変更時のルール：
+- マイグレーションファイルを必ず作成
+- ロールバック手順を記載
+- 本番データへの影響を評価
+</important>
+```
+
+### モノレポでの複数 CLAUDE.md
+
+モノレポでは、ルートと各パッケージにCLAUDE.mdを配置します。Claude は**祖先・子孫のファイルを自動的にロード**します。
+
+```
+monorepo/
+├── CLAUDE.md                    # 共通ルール
+├── packages/
+│   ├── frontend/
+│   │   └── CLAUDE.md           # フロントエンド固有ルール
+│   ├── backend/
+│   │   └── CLAUDE.md           # バックエンド固有ルール
+│   └── shared/
+│       └── CLAUDE.md           # 共有ライブラリルール
+```
+
+## .claude/rules/ ディレクトリ
+
+大きなルールセットは `.claude/rules/` に分割して管理します。
+
+```
+.claude/rules/
+├── coding-standards.md
+├── testing-requirements.md
+├── security-policy.md
+└── deployment-checklist.md
+```
+
+グローバルルールは `~/.claude/rules/` に配置します。
+
+## settings.json の設定項目
+
+### 主要な設定
+
+```json
+{
+  "permissions": {
+    "allow": ["read", "write", "execute"],
+    "deny": ["network"]
+  },
+  "model": "claude-sonnet-4-20250514",
+  "outputStyle": "explanatory",
+  "sandbox": true,
+  "thinkingMode": true
+}
+```
+
+| 項目 | 説明 |
+|------|------|
+| `permissions` | Claude が実行可能な操作の制御 |
+| `model` | 使用するモデルの指定 |
+| `outputStyle` | 出力スタイル（explanatory で詳細な説明） |
+| `sandbox` | ファイル・ネットワークアクセスの制限 |
+| `thinkingMode` | 思考モードの有効化 |
+
+### ワイルドカードパーミッション
+
+`dangerously-skip-permissions` の代わりに、ワイルドカード構文で細かく権限を設定します。
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "read:src/**",
+      "write:src/**",
+      "execute:npm test",
+      "execute:npm run build"
+    ]
+  }
+}
+```
+
+## プロジェクトメモリ
+
+### memory.md と constitution.md
+
+これらのファイルは参考として使えますが、**実行可能なセットアップ**を重視します。
+
+```
+~/.claude/projects/<project>/memory/  # プロジェクト固有メモリ
+```
+
+> memory.md や constitution.md に保証はありません。どの開発者でも Claude 起動直後にテストを実行できる状態を維持することが重要です。
+
+### コードベースの清潔さ
+
+部分的なマイグレーションはモデルのパターン選択を混乱させます。マイグレーションは完了させてからClaude に作業させましょう。
+
+## 設定のベストプラクティスまとめ
+
+| 項目 | 推奨 |
+|------|------|
+| CLAUDE.md | 200行以内（理想は60行） |
+| 条件付きルール | `<important if="...">` タグで囲む |
+| モノレポ | パッケージごとに CLAUDE.md を配置 |
+| ルール分割 | `.claude/rules/` に分割管理 |
+| パーミッション | ワイルドカード構文で細かく設定 |
+| マイグレーション | 完了してから Claude に作業させる |
+| テスト | 起動直後にテスト実行可能な状態を維持 |
