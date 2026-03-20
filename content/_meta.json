@@ -6,22 +6,22 @@
       "layout": "full"
     }
   },
-  "certified": {
-    "title": "認定資格 (CCA)"
+  "release-notes": {
+    "title": "Claude Code リリースノート"
   },
   "official-guide": {
     "title": "公式ガイド"
   },
+  "certified": {
+    "title": "Claude Certified Associate (CCA)"
+  },
+  "best-practice": {
+    "title": "ベストプラクティス"
+  },
   "everything-claude-code": {
     "title": "Everything Claude Code"
   },
-  "best-practice": {
-    "title": "Best Practice"
-  },
   "pullhead": {
     "title": "Pullhead"
-  },
-  "release-notes": {
-    "title": "リリースノート"
   }
 }
