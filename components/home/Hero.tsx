@@ -51,9 +51,9 @@ export function Hero() {
         {/* Title */}
         <h1
           style={{
-            fontFamily: 'var(--font-display), Georgia, serif',
+            fontFamily: 'var(--font-display), system-ui, sans-serif',
             fontSize: 'clamp(2.5rem, 6vw, 4rem)',
-            fontWeight: 400,
+            fontWeight: 700,
             lineHeight: 1.1,
             letterSpacing: '-0.03em',
             margin: '0 0 1.25rem',
@@ -99,7 +99,7 @@ export function Hero() {
               gap: '0.4rem',
               padding: '0.7rem 1.5rem',
               borderRadius: '8px',
-              background: 'var(--cg-gradient-warm)',
+              background: 'linear-gradient(135deg, #92400e 0%, #78350f 100%)',
               color: '#fff',
               fontWeight: 600,
               fontSize: '0.9rem',

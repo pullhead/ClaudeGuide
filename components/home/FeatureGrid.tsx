@@ -53,9 +53,9 @@ export function FeatureGrid() {
       <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
         <h2
           style={{
-            fontFamily: 'var(--font-display), Georgia, serif',
+            fontFamily: 'var(--font-display), system-ui, sans-serif',
             fontSize: '1.6rem',
-            fontWeight: 400,
+            fontWeight: 600,
             letterSpacing: '-0.02em',
             color: 'var(--cg-text)',
             margin: '0 0 0.5rem',

@@ -3,25 +3,35 @@
     "title": "ホーム",
     "type": "page",
     "theme": {
-      "layout": "full"
+      "layout": "full",
+      "breadcrumb": false,
+      "sidebar": false,
+      "toc": false,
+      "pagination": false
     }
   },
   "release-notes": {
-    "title": "Claude Code リリースノート"
+    "title": "Claude Code リリースノート",
+    "type": "page"
   },
   "official-guide": {
-    "title": "公式ガイド"
+    "title": "公式ガイド",
+    "type": "page"
   },
   "certified": {
-    "title": "Claude Certified Associate (CCA)"
+    "title": "Claude Certified Associate (CCA)",
+    "type": "page"
   },
   "best-practice": {
-    "title": "ベストプラクティス"
+    "title": "ベストプラクティス",
+    "type": "page"
   },
   "everything-claude-code": {
-    "title": "Everything Claude Code"
+    "title": "Everything Claude Code",
+    "type": "page"
   },
   "pullhead": {
-    "title": "Pullhead"
+    "title": "Pullhead",
+    "type": "page"
   }
 }

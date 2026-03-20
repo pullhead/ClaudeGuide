@@ -1,12 +1,12 @@
 import { Footer, Layout, Navbar } from 'nextra-theme-docs'
 import { Head } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
-import { DM_Serif_Display, Source_Sans_3 } from 'next/font/google'
+import { Outfit, Source_Sans_3 } from 'next/font/google'
 import 'nextra-theme-docs/style.css'
 import './globals.css'
 
-const displayFont = DM_Serif_Display({
-  weight: '400',
+const displayFont = Outfit({
+  weight: ['400', '600', '700'],
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-display',
@@ -75,6 +75,7 @@ export default async function RootLayout({
       className={`${displayFont.variable} ${bodyFont.variable}`}
     >
       <Head
+        faviconGlyph="◆"
         color={{ hue: 38, saturation: 92 }}
         backgroundColor={{ dark: '#1c1917', light: '#fafaf9' }}
       />
@@ -83,7 +84,6 @@ export default async function RootLayout({
           navbar={
             <Navbar
               logo={logo}
-              projectLink="https://github.com/pullhead/ClaudeGuide"
             />
           }
           pageMap={await getPageMap()}
@@ -119,6 +119,7 @@ export default async function RootLayout({
           toc={{ title: '目次' }}
           editLink={null}
           feedback={{ content: null }}
+          copyPageButton={false}
         >
           {children}
         </Layout>
