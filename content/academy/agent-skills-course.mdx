@@ -8,75 +8,491 @@ Introduction to Agent Skills は、Claude Code における **Skills 機能**の
 
 Skills は、CLAUDE.md、フック、サブエージェントなどの他のカスタマイズオプションとどう異なるかを理解し、適切に使い分けることが重要です。
 
-## 学習内容
+Skills は [Agent Skills](https://agentskills.io) オープンスタンダードに準拠しており、複数の AI ツール間で動作します。Claude Code はこのスタンダードに加えて、起動制御、サブエージェント実行、動的コンテキスト注入などの拡張機能を提供します。
 
-### Skills の基礎
+### 対象者
 
-- **Skills とは何か** — マークダウンベースの再利用可能な指示セット。特定のタスクに対して Claude が自動的に適用する
-- **他のカスタマイズとの違い** — CLAUDE.md（プロジェクト全体の設定）、フック（イベントトリガー）、サブエージェント（タスク委任）との使い分け
-- **Skills が解決する課題** — 繰り返しの指示、一貫性のない出力、コンテキスト効率の低下
+- Claude Code を使っている開発者
+- チーム内で Claude の動作を標準化したい方
+- 繰り返しタスクの自動化に興味がある方
+- エンタープライズ環境で Skills を組織全体にデプロイしたい管理者
 
-### Skills の作成
+### 前提条件
 
-- **SKILL.md フロントマター** — Skills ファイルのメタデータ記述方法（名前、説明、トリガー条件）
-- **効果的な description の書き方** — Claude が確実にトリガーマッチングできる説明文の作成テクニック
-- **スキルディレクトリの整理** — progressive disclosure（段階的開示）を活用した効率的なファイル構成
+- Claude Code の基本的な利用経験
+- マークダウンの基礎知識
+- コマンドライン操作の基本
 
-### 高度な設定
+### 学習目標
 
-- **allowed-tools によるツールアクセス制限** — Skills が利用できるツールを明示的に制限する方法
-- **サブエージェントへの接続** — Skills をカスタムサブエージェントに接続してタスクを委任する方法
-- **条件付きトリガー** — 特定の状況でのみ Skills を起動させる設定
+コース修了時には以下のスキルを習得します:
 
-### Skills の配布と共有
+- Skills の作成と SKILL.md フロントマターの記述
+- 効果的な description によるトリガーマッチング
+- allowed-tools、サブエージェント接続、条件付きトリガーなどの高度な設定
+- チームやエンタープライズ向けの配布と共有
+- トラブルシューティングとデバッグ
 
-- **リポジトリコミットによる共有** — プロジェクトリポジトリに Skills を含めてチーム共有
-- **プラグインとしての配布** — Skills を Claude Code プラグインとしてパッケージ化
-- **エンタープライズ管理設定** — 組織全体への Skills の一括デプロイ
+---
 
-### トラブルシューティング
+## モジュール1: Skills の基礎
 
-- Skills がトリガーされない場合の対処法
-- ランタイムエラーの診断と修正
-- デバッグツールの活用
+### Skills とは何か
 
-## API と Claude Code での利用
+Skills は、マークダウンベースの再利用可能な指示セットです。`SKILL.md` ファイルに指示を記述すると、Claude が自動的にツールキットに追加します。Claude はタスクの内容に基づいて関連する Skills を自動選択するか、`/スキル名` でスラッシュコマンドとして直接呼び出すこともできます。
 
-Skills は以下の2つの方法で利用できます。
+**カスタムコマンドとの統合**: `.claude/commands/deploy.md` に配置したファイルと `.claude/skills/deploy/SKILL.md` に配置した Skills は、どちらも `/deploy` として同じように動作します。既存の `.claude/commands/` ファイルはそのまま使い続けられます。Skills はそれに加えて、サポートファイルのディレクトリ、フロントマターによる起動制御、自動ロードなどのオプション機能を提供します。
 
-### Claude Code での利用
+### 他のカスタマイズとの違い
+
+| カスタマイズ | 役割 | 適用範囲 |
+|-------------|------|---------|
+| **CLAUDE.md** | プロジェクト全体の設定・ルール | 常にコンテキストに含まれる |
+| **Skills** | 特定タスクへの再利用可能な指示 | 関連時に自動ロードまたは手動起動 |
+| **フック** | ツールイベントに対する自動アクション | イベントトリガーで実行 |
+| **サブエージェント** | 隔離されたコンテキストでのタスク委任 | 特定タスクに対して呼び出し |
+
+### Skills が解決する課題
+
+- **繰り返しの指示**: 毎回同じ説明をする必要がなくなる
+- **一貫性のない出力**: チーム全体で統一された出力フォーマットを実現
+- **コンテキスト効率の低下**: 必要な時だけ詳細をロードする段階的開示
+
+---
+
+## モジュール2: Skills の作成
+
+### Skills ディレクトリ構造
+
+各 Skill はディレクトリ内の `SKILL.md` をエントリーポイントとします:
 
 ```
-# Skills を含むディレクトリ構造の例
-.claude/
-  skills/
-    code-review.md
-    test-writing.md
-    commit-message.md
+my-skill/
+├── SKILL.md           # メインの指示（必須）
+├── template.md        # Claude が埋める テンプレート
+├── examples/
+│   └── sample.md      # 期待されるフォーマットの例
+└── scripts/
+    └── validate.sh    # Claude が実行できるスクリプト
 ```
 
-Claude Code はタスクの内容に基づいて自動的に適切な Skills を選択・適用します。`/スキル名` でスラッシュコマンドとしても呼び出せます。
+### Skills の配置場所
 
-### API での利用
+| 配置レベル | パス | 適用範囲 |
+|-----------|------|---------|
+| エンタープライズ | マネージド設定で配布 | 組織の全ユーザー |
+| パーソナル | `~/.claude/skills/<skill-name>/SKILL.md` | 自分の全プロジェクト |
+| プロジェクト | `.claude/skills/<skill-name>/SKILL.md` | そのプロジェクトのみ |
+| プラグイン | `<plugin>/skills/<skill-name>/SKILL.md` | プラグイン有効時 |
 
-API 経由で Skills を利用する場合、システムプロンプトに Skills の内容を含めることで同様の効果を得られます。
+同名の Skills が複数レベルに存在する場合、優先度は: エンタープライズ > パーソナル > プロジェクト。プラグイン Skills は `plugin-name:skill-name` の名前空間を使うため競合しません。
+
+**自動ディスカバリー**: サブディレクトリで作業しているとき、Claude Code はネストされた `.claude/skills/` ディレクトリから Skills を自動的に検出します。例えば `packages/frontend/` 内のファイルを編集していると、`packages/frontend/.claude/skills/` の Skills も検出されます（モノレポ対応）。
+
+### SKILL.md の書き方
+
+SKILL.md は2つの部分で構成されます:
+
+1. **YAML フロントマター**（`---` マーカーの間）— Claude にいつ使うかを伝えるメタデータ
+2. **マークダウンコンテンツ** — Skills 起動時に Claude が従う指示
+
+#### 基本的な例
+
+```yaml
+---
+name: explain-code
+description: >-
+  Explains code with visual diagrams and analogies.
+  Use when explaining how code works, teaching about a codebase,
+  or when the user asks "how does this work?"
+---
+
+When explaining code, always include:
+
+1. **Start with an analogy**: Compare the code to something from everyday life
+2. **Draw a diagram**: Use ASCII art to show the flow, structure, or relationships
+3. **Walk through the code**: Explain step-by-step what happens
+4. **Highlight a gotcha**: What's a common mistake or misconception?
+
+Keep explanations conversational. For complex concepts, use multiple analogies.
+```
+
+### フロントマター リファレンス
+
+全フィールドはオプションです。`description` のみ推奨（Claude がいつ使うか判断するため）。
+
+| フィールド | 必須 | 説明 |
+|-----------|------|------|
+| `name` | いいえ | Skills の表示名。省略時はディレクトリ名を使用。小文字・数字・ハイフンのみ（最大64文字） |
+| `description` | 推奨 | Skills の内容と使用タイミング。Claude の自動トリガー判定に使用。省略時はマークダウンの最初の段落を使用 |
+| `argument-hint` | いいえ | オートコンプリート時に表示される引数ヒント。例: `[issue-number]`、`[filename] [format]` |
+| `disable-model-invocation` | いいえ | `true` に設定すると Claude の自動ロードを無効化。手動の `/name` でのみ起動。デフォルト: `false` |
+| `user-invocable` | いいえ | `false` に設定すると `/` メニューから非表示。ユーザーが直接起動すべきでない背景知識用。デフォルト: `true` |
+| `allowed-tools` | いいえ | Skills アクティブ時に許可確認なしで使えるツール |
+| `model` | いいえ | Skills アクティブ時に使用するモデル |
+| `context` | いいえ | `fork` に設定するとフォークされたサブエージェントで実行 |
+| `agent` | いいえ | `context: fork` 設定時に使用するサブエージェントタイプ |
+| `hooks` | いいえ | Skills のライフサイクルにスコープされたフック |
+
+### 効果的な description の書き方
+
+description は Claude がトリガーマッチングに使用する最も重要なフィールドです。
+
+**良い例**:
+```yaml
+description: >-
+  Explains code with visual diagrams and analogies.
+  Use when explaining how code works, teaching about a codebase,
+  or when the user asks "how does this work?"
+```
+
+**悪い例**:
+```yaml
+description: A helpful skill for code
+```
+
+ポイント:
+- ユーザーが自然に言いそうなキーワードを含める
+- 具体的な使用場面を明記する
+- 曖昧な表現を避ける
+
+### スキルコンテンツの種類
+
+**リファレンスコンテンツ** — Claude が現在の作業に適用する知識（規約、パターン、スタイルガイド）:
+
+```yaml
+---
+name: api-conventions
+description: API design patterns for this codebase
+---
+
+When writing API endpoints:
+- Use RESTful naming conventions
+- Return consistent error formats
+- Include request validation
+```
+
+**タスクコンテンツ** — 特定のアクションのステップバイステップの指示:
+
+```yaml
+---
+name: deploy
+description: Deploy the application to production
+context: fork
+disable-model-invocation: true
+---
+
+Deploy the application:
+1. Run the test suite
+2. Build the application
+3. Push to the deployment target
+```
+
+### 文字列置換
+
+Skills コンテンツ内で動的な値を参照できます:
+
+| 変数 | 説明 |
+|------|------|
+| `$ARGUMENTS` | Skills 起動時に渡されたすべての引数 |
+| `$ARGUMENTS[N]` | 0ベースのインデックスで特定の引数にアクセス（例: `$ARGUMENTS[0]`） |
+| `$N` | `$ARGUMENTS[N]` の省略形（例: `$0`、`$1`） |
+| `${CLAUDE_SESSION_ID}` | 現在のセッション ID |
+| `${CLAUDE_SKILL_DIR}` | Skills の `SKILL.md` があるディレクトリ |
+
+**引数を使った例**:
+
+```yaml
+---
+name: fix-issue
+description: Fix a GitHub issue
+disable-model-invocation: true
+---
+
+Fix GitHub issue $ARGUMENTS following our coding standards.
+
+1. Read the issue description
+2. Understand the requirements
+3. Implement the fix
+4. Write tests
+5. Create a commit
+```
+
+`/fix-issue 123` で起動すると、Claude は「Fix GitHub issue 123 following our coding standards...」を受け取ります。
+
+**位置引数の例**:
+
+```yaml
+---
+name: migrate-component
+description: Migrate a component from one framework to another
+---
+
+Migrate the $0 component from $1 to $2.
+Preserve all existing behavior and tests.
+```
+
+`/migrate-component SearchBar React Vue` で `$0` = SearchBar、`$1` = React、`$2` = Vue に置換されます。
+
+---
+
+## モジュール3: 高度な設定
+
+### 起動の制御
+
+デフォルトでは、ユーザーと Claude の両方が Skills を起動できます。2つのフロントマターフィールドで制御できます:
+
+| フロントマター設定 | ユーザー起動 | Claude 起動 | コンテキストへのロードタイミング |
+|------------------|------------|------------|------|
+| (デフォルト) | 可 | 可 | description が常にコンテキストに含まれ、起動時にフル Skills がロード |
+| `disable-model-invocation: true` | 可 | 不可 | description がコンテキストに含まれず、ユーザー起動時にロード |
+| `user-invocable: false` | 不可 | 可 | description が常にコンテキストに含まれ、起動時にフルスキルがロード |
+
+**`disable-model-invocation: true`** — デプロイやコミットなど、副作用のあるワークフローに使用。Claude が勝手にデプロイを開始することを防ぐ。
+
+**`user-invocable: false`** — レガシーシステムの背景知識など、コマンドとして実行する意味がないもの。Claude が関連時に自動参照する。
+
+### allowed-tools によるツールアクセス制限
+
+`allowed-tools` フィールドで、Skills アクティブ時に Claude が使用できるツールを制限できます:
+
+```yaml
+---
+name: safe-reader
+description: Read files without making changes
+allowed-tools: Read, Grep, Glob
+---
+```
+
+この例では読み取り専用モードを作成し、Claude はファイルを探索できますが変更はできません。
+
+### サブエージェントでの実行（context: fork）
+
+`context: fork` を追加すると、Skills が隔離されたサブエージェントで実行されます。Skills のコンテンツがサブエージェントを駆動するプロンプトになり、会話履歴にはアクセスできません。
+
+```yaml
+---
+name: deep-research
+description: Research a topic thoroughly
+context: fork
+agent: Explore
+---
+
+Research $ARGUMENTS thoroughly:
+
+1. Find relevant files using Glob and Grep
+2. Read and analyze the code
+3. Summarize findings with specific file references
+```
+
+実行フロー:
+1. 新しい隔離コンテキストが作成される
+2. サブエージェントが Skills コンテンツをプロンプトとして受け取る
+3. `agent` フィールドが実行環境（モデル、ツール、権限）を決定する
+4. 結果がメインの会話に要約して返される
+
+`agent` フィールドのオプション: 組み込みエージェント（`Explore`、`Plan`、`general-purpose`）またはカスタムサブエージェント（`.claude/agents/` 内）。省略時は `general-purpose`。
+
+### 動的コンテキスト注入
+
+`` !`command` `` 構文でシェルコマンドを Skills コンテンツの送信前に実行できます。コマンド出力がプレースホルダーを置き換えるため、Claude は実際のデータを受け取ります:
+
+```yaml
+---
+name: pr-summary
+description: Summarize changes in a pull request
+context: fork
+agent: Explore
+allowed-tools: Bash(gh *)
+---
+
+## Pull request context
+- PR diff: !`gh pr diff`
+- PR comments: !`gh pr view --comments`
+- Changed files: !`gh pr diff --name-only`
+
+## Your task
+Summarize this pull request...
+```
+
+これは前処理であり、Claude が実行するものではありません。Claude は最終結果のみを受け取ります。
+
+### サポートファイルの追加
+
+`SKILL.md` を簡潔に保ちつつ、必要な時だけ詳細な参照資料をロードできます:
+
+```
+my-skill/
+├── SKILL.md (必須 - 概要とナビゲーション)
+├── reference.md (詳細な API ドキュメント - 必要時にロード)
+├── examples.md (使用例 - 必要時にロード)
+└── scripts/
+    └── helper.py (ユーティリティスクリプト - 実行用)
+```
+
+SKILL.md からサポートファイルを参照します:
+
+```markdown
+## Additional resources
+
+- For complete API details, see [reference.md](reference.md)
+- For usage examples, see [examples.md](examples.md)
+```
+
+**推奨**: SKILL.md は500行以内に収め、詳細な参照資料は別ファイルに移動する。
+
+### Skills のパーミッション制御
+
+3つの方法で Claude の Skills アクセスを制御できます:
+
+**1. すべての Skills を無効化** — `/permissions` で Skill ツールを拒否:
+```
+# deny rules に追加:
+Skill
+```
+
+**2. 特定の Skills を許可/拒否** — パーミッションルールを使用:
+```
+# 特定の Skills のみ許可
+Skill(commit)
+Skill(review-pr *)
+
+# 特定の Skills を拒否
+Skill(deploy *)
+```
+
+パーミッション構文: `Skill(name)` は完全一致、`Skill(name *)` はプレフィックスマッチ。
+
+**3. 個別の Skills を非表示** — フロントマターに `disable-model-invocation: true` を追加。
+
+---
+
+## モジュール4: バンドルスキル
+
+Claude Code には以下のバンドルスキルが同梱されており、すべてのセッションで利用可能です。組み込みコマンド（固定ロジック）とは異なり、バンドルスキルはプロンプトベースで、Claude に詳細なプレイブックを渡して作業をオーケストレーションします。
+
+| スキル | 目的 |
+|-------|------|
+| `/batch <instruction>` | コードベース全体にわたる大規模変更を並列でオーケストレーション。調査 → 分解（5〜30ユニット） → 計画提示 → 承認後にユニットごとにエージェントを生成して実装・テスト・PR作成 |
+| `/claude-api` | プロジェクト言語に応じた Claude API リファレンスと Agent SDK リファレンスをロード。`anthropic` インポート時に自動起動も |
+| `/debug [description]` | セッションのデバッグログを読み取ってトラブルシューティング |
+| `/loop [interval] <prompt>` | プロンプトを定期的に繰り返し実行。デプロイの監視やPRの定期チェックに有用 |
+| `/simplify [focus]` | 最近変更したファイルのコード品質をレビューし修正。3つのレビューエージェントを並列起動 |
+
+---
+
+## モジュール5: Skills の配布と共有
+
+### プロジェクト内共有
+
+`.claude/skills/` をバージョン管理にコミットするだけで、チーム全員が利用できます。
+
+### プラグインとしての配布
+
+Skills を Claude Code プラグインの `skills/` ディレクトリに含めることで、プラグインとして配布できます。プラグイン Skills は `plugin-name:skill-name` の名前空間を使用します。
+
+### エンタープライズ管理設定
+
+マネージド設定を通じて、組織全体に Skills を一括デプロイできます。エンタープライズレベルの Skills は最も高い優先度を持ち、パーソナルやプロジェクトレベルの同名 Skills より優先されます。
+
+### ビジュアル出力の生成
+
+Skills にスクリプトをバンドルして実行することで、インタラクティブな HTML ファイルを生成し、ブラウザで開くこともできます。例えばコードベースエクスプローラー、依存関係グラフ、テストカバレッジレポートなどに応用可能です。
+
+```yaml
+---
+name: codebase-visualizer
+description: >-
+  Generate an interactive collapsible tree visualization of your codebase.
+  Use when exploring a new repo, understanding project structure,
+  or identifying large files.
+allowed-tools: Bash(python *)
+---
+
+# Codebase Visualizer
+
+Generate an interactive HTML tree view that shows your
+project's file structure with collapsible directories.
+
+## Usage
+
+Run the visualization script from your project root:
+
+```bash
+python ~/.claude/skills/codebase-visualizer/scripts/visualize.py .
+```
+```
+
+Python スクリプトをバンドルすることで、ディレクトリツリーのスキャンとインタラクティブ HTML の生成を自動化できます。
+
+---
+
+## モジュール6: トラブルシューティング
+
+### Skills がトリガーされない場合
+
+1. **description を確認** — ユーザーが自然に言いそうなキーワードを含んでいるか
+2. **Skills の存在確認** — `What skills are available?` と聞いて一覧に表示されるか
+3. **リクエストの言い換え** — description により近い表現に変えてみる
+4. **直接起動でテスト** — `/skill-name` で起動して動作確認
+
+### Skills が頻繁にトリガーされすぎる場合
+
+1. **description をより具体的にする** — トリガー条件を絞る
+2. **`disable-model-invocation: true` を追加** — 手動起動のみにする
+
+### Claude がすべての Skills を認識しない場合
+
+Skills の description はコンテキストにロードされますが、文字数バジェットがあります（コンテキストウィンドウの2%、フォールバックで16,000文字）。`/context` でバジェット超過の警告を確認できます。
+
+上限を変更するには `SLASH_COMMAND_TOOL_CHAR_BUDGET` 環境変数を設定します。
+
+### ランタイムエラーの診断
+
+- `/debug` バンドルスキルでセッションログを分析
+- `allowed-tools` の設定が必要なツールを制限していないか確認
+- `context: fork` 使用時はサブエージェントに十分な指示があるか確認（ガイドラインだけでタスクがないとサブエージェントは意味のある出力を返さない）
+
+---
 
 ## ベストプラクティス
+
+### Skills 設計の原則
 
 - **1つの Skills = 1つのタスク** — 各 Skills は明確に定義された1つのタスクに焦点を当てる
 - **具体的な description** — 曖昧な説明ではなく、トリガー条件が明確にわかる記述にする
 - **テスト可能な出力** — Skills の結果が検証可能な形式になるよう設計する
 - **段階的な構築** — シンプルな Skills から始めて、徐々に複雑さを追加する
+- **SKILL.md は500行以内** — 詳細は別ファイルに分離する
 
-## 最終ゴール
+### コンテキスト効率
 
-コース修了時には、Skills ベースの完全なワークフローを構築できるようになります。Claude を一貫性があり、コンテキスト効率が高く、チームの基準に沿った状態に保つためのスキルを身につけます。
+- 大きなリファレンスドキュメント、API仕様、サンプルコレクションはサポートファイルに分離
+- Skills の description だけが常にロードされ、フルコンテンツは起動時にのみロード
+- サブエージェント実行（`context: fork`）で会話コンテキストの汚染を防ぐ
 
-## 対象者
+### セキュリティ
 
-- Claude Code を使っている開発者
-- チーム内で Claude の動作を標準化したい方
-- 繰り返しタスクの自動化に興味がある方
+- デプロイ、送信などの副作用を持つ Skills は `disable-model-invocation: true` を設定
+- `allowed-tools` で最小権限の原則を適用
+- パーミッションルールで組織レベルのアクセス制御
+
+### チーム運用
+
+- プロジェクト Skills をバージョン管理にコミットして標準化
+- エンタープライズ管理設定で組織全体のポリシーを強制
+- Skills の命名規則をチームで統一
+
+---
+
+## 関連リソース
+
+- [サブエージェント](https://code.claude.com/docs/en/sub-agents) — 専門エージェントへのタスク委任
+- [プラグイン](https://code.claude.com/docs/en/plugins) — Skills と他の拡張のパッケージ化・配布
+- [フック](https://code.claude.com/docs/en/hooks) — ツールイベントに対する自動化
+- [メモリ](https://code.claude.com/docs/en/memory) — CLAUDE.md による永続コンテキスト管理
+- [組み込みコマンド](https://code.claude.com/docs/en/commands) — 組み込み `/` コマンドリファレンス
+- [パーミッション](https://code.claude.com/docs/en/permissions) — ツールと Skills のアクセス制御
 
 ## 受講方法
 

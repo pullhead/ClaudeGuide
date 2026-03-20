@@ -6,144 +6,337 @@
 
 「Build with Claude」は、Claude を使ったアプリケーション開発のための**開発者向け学習トラック**です。API ガイド、ベストプラクティス、チュートリアル、コースなど、包括的なリソースを提供しています。15のトピックにわたり、開発に必要な知識を体系的に学べます。
 
+**主要リンク:**
+- [開発を始める（Anthropic Console）](https://platform.claude.com/)
+- [開発者ドキュメント](https://docs.anthropic.com/en/home)
+
+---
+
 ## 15のトピック
 
 ### 1. Claude 4.5 Models
 
-最新の Claude モデルの機能とインテリジェンスについて学びます。
+最新モデルである **Claude Sonnet 4.5** と **Claude Opus 4.5** の機能とインテリジェンスを活用する方法を学びます。
 
-- Sonnet 4.5 の新機能
-- Claude 4 へのモデルマイグレーションガイド
-- モデル選択基準と比較
-- プロンプト最適化のベストプラクティス
+#### はじめに
+- **Sonnet 4.5 の新機能を学ぶ** — 最新のアップデート内容と改善点を確認
+- **リリースノートで最新機能を確認** — 全機能変更のサマリー
+- **モデルマイグレーションチェックリスト** — Claude 4 モデルへのスムーズな移行手順
+- **適切なモデルの選び方ガイド** — ユースケースに応じた最適なモデル選択の判断基準
+- **Claude 4 プロンプティングのベストプラクティス** — 最新モデルで最適な結果を得るためのプロンプト手法
+
+#### ドキュメント
+- **モデル比較チャート** — Opus、Sonnet、Haiku の性能・コスト・速度を一覧比較
+- **Claude 4 の料金表** — 入出力トークンあたりの課金体系
+
+#### インサイト
+- Claude 4 発表ブログ記事
+- Claude Opus 4 公式サイト
+- Claude Sonnet 4 公式サイト
+
+---
 
 ### 2. APIs & SDKs
 
-Claude アプリケーション構築のための開発ツール群。
+Anthropic の API、SDK、その他の開発ツールについて学びます。Claude アプリケーション構築の基盤となるトピックです。
 
-- **SDK**: Python、TypeScript、Java、Go、Ruby の5言語対応
-- **API**: Messages API、バッチ処理、プロンプトキャッシング
-- **クラウド統合**: Amazon Bedrock、Google Vertex AI
-- **高度な API**: Admin API、Files API、PDF テキスト抽出
-- **コース**: [Building with the Claude API](https://anthropic.skilljar.com/claude-with-the-anthropic-api)
+#### SDK（ソフトウェア開発キット）
+
+5つのプログラミング言語に対応した公式 SDK が用意されています:
+
+| SDK | 言語 | 用途 |
+|-----|------|------|
+| Python SDK | Python | データサイエンス、バックエンド、スクリプティング |
+| TypeScript SDK | TypeScript/JavaScript | Web アプリケーション、Node.js |
+| Java SDK | Java | エンタープライズアプリケーション |
+| Go SDK | Go | マイクロサービス、インフラツール |
+| Ruby SDK | Ruby | Web アプリケーション（Rails 等） |
+
+#### API の基本
+
+- **Messages API** — Claude との対話の基本 API。テキスト・画像の入力、ストリーミング応答に対応
+- **Message Batches API** — 複数の Messages API リクエストを一括処理。大量処理時のコスト最適化に有効
+- **プロンプトキャッシング** — 繰り返し使用するプロンプトをキャッシュして API 利用を最適化
+- **Amazon Bedrock API** — AWS 上で Claude を利用するための統合ガイド
+- **Vertex AI API** — Google Cloud 上で Claude を利用するための統合ガイド
+
+#### 高度な API
+
+- **Admin API** — ワークスペースの権限管理と組織設定
+- **Files API** — ファイルのアップロードと管理
+- **PDF サポート** — PDF からのテキスト抽出とビジュアルコンテンツの理解
+- **[実験的 API] プロンプト生成** — 適切に構造化されたプロンプトを自動生成
+- **[実験的 API] プロンプト改善** — コード内で直接プロンプトを改善
+- **[実験的 API] プロンプトテンプレート化** — 変数を自動抽出してプロンプトをテンプレート化
+
+#### 推奨コース
+
+| コース | 内容 |
+|--------|------|
+| [Building with the Claude API](https://anthropic.skilljar.com/claude-with-the-anthropic-api) | Anthropic API を使った開発の包括的コース |
+| [Claude with Amazon Bedrock](https://anthropic.skilljar.com/claude-in-amazon-bedrock) | Amazon Bedrock 経由での Claude 利用 |
+| [Claude with Google Cloud's Vertex AI](https://anthropic.skilljar.com/claude-with-google-vertex) | Google Cloud Vertex AI 経由での Claude 利用 |
+
+---
 
 ### 3. Agents
 
-複雑なタスクを理解・計画・実行する自律型エージェントの構築。
+複雑なタスクを理解・計画・実行する**自律型エージェントおよびエージェンティックシステム**を構築する方法を学びます。
 
-- エージェント設計パターン（Anthropic Cookbook）
-- JSON 出力の実装による信頼性の高い制御
-- MCP ドキュメント
-- 効果的なエージェント構築ガイド
+#### はじめに
+- **Anthropic Cookbook でエージェントパターンを探索** — 実装済みのエージェント設計パターンとサンプルコード
+- **JSON 出力の実装** — 信頼性が高く一貫したエージェント制御のための構造化出力
+
+#### ドキュメント
+- **Model Context Protocol（MCP）** — エージェンティックなワークフローを改善するためのプロトコル仕様
+
+#### インサイト
+- **効果的なエージェントの構築** — Anthropic によるエージェント設計のベストプラクティス解説。ワークフロー型とオーケストレーター型の違い、ツール選択の戦略、エラーハンドリング手法などを網羅
+
+---
 
 ### 4. Skills
 
-詳細なタスク指示で Claude のパフォーマンスを向上。
+詳細な指示（Skills）を提供することで、Claude に**特定のタスクをより正確に実行**させる方法を学びます。
 
-- Skills の概要とフレームワーク
-- Skills 作成のベストプラクティス
-- API 統合方法
-- Claude Code との統合
-- **コース**: [Introduction to Agent Skills](https://anthropic.skilljar.com/introduction-to-agent-skills)
+#### はじめに
+- **Skills の概要** — Skills とは何か、どのように機能するかを理解
+- **Skills 作成のベストプラクティス** — 効果的な Skills を設計するためのガイドライン
+
+#### ドキュメント
+- **API での Skills 利用** — プログラマティックに Skills を活用する方法
+- **Claude Code での Skills 利用** — 開発ワークフローに Skills を組み込む方法
+
+#### 推奨コース
+- [Introduction to Agent Skills](https://anthropic.skilljar.com/introduction-to-agent-skills) — Skills の作成・配布・運用方法を学ぶコース
+
+---
 
 ### 5. Model Context Protocol（MCP）
 
-高度なアプリケーション開発のための標準プロトコル。
+**Model Context Protocol** を使った高度なアプリケーション開発を学びます。MCP は、AI モデルが外部のデータソースやツールに安全にアクセスするためのオープンスタンダードです。
 
-- Claude Desktop での統合
-- プリビルト MCP サーバー
-- リモート MCP サーバーのデプロイ
-- Messages API との接続
-- **コース**: [入門](https://anthropic.skilljar.com/introduction-to-model-context-protocol) / [上級](https://anthropic.skilljar.com/model-context-protocol-advanced-topics)
+#### はじめに
+- **Claude Desktop での MCP セットアップ** — デスクトップアプリでの統合手順
+- **プリビルト MCP サーバーの利用** — Anthropic が提供するすぐに使えるサーバー群
+- **Claude Code での MCP 利用** — 開発環境での MCP 統合
+- **リモート MCP サーバーのセットアップ** — クラウド環境でのデプロイ手順
+- **Messages API からのリモート MCP 接続** — API 経由での MCP サーバー接続
+- **GitHub で MCP に貢献** — オープンソースプロジェクトへの参加
+
+#### ドキュメント
+- [MCP ドキュメント](https://modelcontextprotocol.io/) — 公式リファレンス
+
+#### インサイト
+- MCP の今後の機能ロードマップ
+- MCP ローンチブログ記事
+
+#### 推奨コース
+
+| コース | 内容 |
+|--------|------|
+| [Introduction to Model Context Protocol](https://anthropic.skilljar.com/introduction-to-model-context-protocol) | MCP の基本概念とセットアップ |
+| [Model Context Protocol: Advanced Topics](https://anthropic.skilljar.com/model-context-protocol-advanced-topics) | リモートサーバー、MCP Connector、高度なパターン |
+
+---
 
 ### 6. Claude Code
 
-AI アシスタントによる開発環境の加速。
+**Claude Code** を使って開発ワークフローを加速する方法を学びます。Claude Code は、ターミナルベースの AI コーディングアシスタントです。
 
-- インストールと IDE 統合
-- Google Vertex / Amazon Bedrock エンタープライズセットアップ
-- 一般的なワークフローテンプレート
+#### はじめに
+- **Claude Code のインストール** — `npm install -g @anthropic-ai/claude-code` でインストール
+- **IDE 統合** — VS Code、JetBrains IDE などとの連携設定
+- **エンタープライズ接続** — Google Vertex または Amazon Bedrock 経由での利用設定
+- **一般的なワークフロー** — コードレビュー、リファクタリング、テスト作成などのテンプレート
+
+#### ドキュメント
+- Claude Code 公式ドキュメント
 - トラブルシューティングガイド
-- **コース**: [Claude Code in Action](https://anthropic.skilljar.com/claude-code-in-action)
+
+#### インサイト
+- Claude Code ローンチビデオ
+
+#### 推奨コース
+- [Claude Code in Action](https://anthropic.skilljar.com/claude-code-in-action) — インストールから IDE 統合、高度なワークフローまでの実践コース
+
+---
 
 ### 7. Tool Use
 
-外部統合で Claude の機能を拡張。
+外部ツールや API との接続により、**Claude の機能を拡張**する方法を学びます。Tool Use を使うと、Claude は関数を呼び出し、外部データを取得し、アクションを実行できます。
 
-- コード実行、テキスト編集、Web 検索
-- インタラクティブなツール利用コース
-- 実装クックブック
+#### はじめに
+- **Tool Use コースの受講** — インタラクティブな学習コース
+- **Tool Use デモビデオの視聴** — 実装の概要を動画で把握
+- **Anthropic Cookbook のツール利用サンプル** — 実装例とコードスニペット
+
+#### ドキュメント
+- Tool Use 公式ドキュメント
+- **コード実行ツール** — Claude がサンドボックス環境でコードを実行
+- **テキスト編集ツール** — ファイルの読み書き・編集操作
+- **Web 検索ツール** — インターネット検索を通じた最新情報の取得
+
+#### インサイト
+- Tool Use ローンチブログ記事
+
+---
 
 ### 8. Extended Thinking
 
-複雑な問題解決のための Claude の推論能力の強化。
+Claude に**段階的な推論（思考プロセス）**を行わせることで、複雑なタスクの解決能力を向上させる機能です。
 
-- 拡張思考モデルの概要
-- 実装のベストプラクティス
-- 数学、分析、コーディングなどでの活用
+#### はじめに
+- **拡張思考モデルについて学ぶ** — Extended Thinking の仕組みと適用場面
+- **Anthropic Cookbook の実装ガイド** — ステップバイステップの実装手順
+- **拡張思考のベストプラクティス** — 数学、コーディング、分析、多段階推論での効果的な活用法
+
+#### ドキュメント
+- Extended Thinking 公式ドキュメント
+
+#### インサイト
+- Extended Thinking ローンチビデオ
+
+---
 
 ### 9. RAG（Retrieval Augmented Generation）
 
-外部データソースと Claude を組み合わせたシステムの構築。
+外部データソースを活用して Claude の応答を強化する**RAG システム**の構築方法を学びます。RAG により、Claude は自身の学習データにない最新情報や専門的なデータにアクセスできます。
 
-- カスタマーサポートエージェントテンプレート
-- Voyage AI エンベディング統合
-- LlamaIndex / MongoDB との統合
-- コンテキスチュアルリトリーバル
+#### はじめに
+- **RAG を使ったカスタマーサポートエージェントの構築** — 実践的なチュートリアル形式でRAGの基本を学ぶ
+- **Voyage AI エンベディングの利用** — 高品質なベクトル埋め込みの生成
+- **LlamaIndex との統合** — LlamaIndex フレームワークを使ったRAGパイプラインの構築
+- **MongoDB との RAG 構築** — MongoDB をベクトルストアとして活用する方法
+
+#### ドキュメント
+- Anthropic エンベディングドキュメント
+
+#### インサイト
+- **コンテキスチュアルリトリーバルの仕組み** — Anthropic が提案する、検索精度を向上させるための手法。ドキュメントチャンクにコンテキストを付与して検索精度を大幅に改善
+
+---
 
 ### 10. Prompt Engineering
 
-効果的なプロンプティングによる Claude のパフォーマンス最適化。
+効果的なプロンプトを作成して **Claude のパフォーマンスを最大化**する手法を学びます。
 
-- インタラクティブなプロンプトエンジニアリングチュートリアル
-- 実世界シナリオの練習
-- プロンプトジェネレーターツール
-- 包括的なドキュメント
+#### はじめに
+- **インタラクティブなプロンプトエンジニアリングチュートリアル** — 段階的に技術を習得する対話型学習
+- **実世界シナリオでの実践** — プロンプト技法を現実の課題に適用する練習問題
+- **プロンプトジェネレーターツール** — Anthropic が提供する自動プロンプト生成ツールを試す
+
+#### ドキュメント
+- プロンプトエンジニアリング公式ドキュメント — ロールプロンプティング、Few-shot、Chain-of-Thought、XML タグの活用など網羅的なガイド
+
+#### インサイト
+- プロンプトエンジニアリングに関するラウンドテーブル動画
+
+---
 
 ### 11. Evaluations
 
-Claude のパフォーマンスを体系的にテスト・検証。
+Claude のパフォーマンスを**体系的にテスト・検証**するための評価手法を学びます。本番環境での品質を担保するために不可欠なプロセスです。
 
-- 評価フレームワークの構築
-- 自動評価テクニック
-- Claude Console の Eval ツール
+#### はじめに
+- **強力な評価の構築方法** — 評価基準の設計と測定指標の定義
+- **自動評価の構築方法** — CI/CD パイプラインに組み込める自動テストの実装
+- **Claude Console の Eval ツール** — GUI ベースの評価ツールの活用
+
+#### ドキュメント
+- Evaluations 公式ドキュメント
+
+---
 
 ### 12. Prompt Caching
 
-パフォーマンスの最適化と運用コストの削減。
+**プロンプトキャッシングによるパフォーマンス最適化とコスト削減**の手法を学びます。繰り返し使用するプロンプトの一部をキャッシュすることで、レイテンシーとコストを大幅に削減できます。
 
-- 実装ガイド（Anthropic Cookbook）
-- キャッシング戦略と設計パターン
+#### はじめに
+- **プロンプトキャッシング解説動画** — 仕組みと効果を動画で理解
+- **Anthropic Cookbook の実装ガイド** — コードベースでの実装手順
+
+#### ドキュメント
+- プロンプトキャッシング公式ドキュメント
+
+#### インサイト
+- プロンプトキャッシングローンチブログ記事
+
+---
 
 ### 13. Vision
 
-Claude の画像理解能力の活用。
+Claude の**画像理解・分析能力**を活用する方法を学びます。Claude は画像の内容を理解し、テキスト抽出、チャート分析、画像の説明などが可能です。
 
-- ビジョンの基礎とベストプラクティス
-- 画像からのテキスト抽出
-- チャート・グラフの分析
+#### はじめに
+- **ビジョンの基礎** — 画像入力の基本的な使い方
+- **ビジョンのベストプラクティス** — 画像の前処理、最適な解像度、プロンプト手法
+- **画像からのテキスト抽出** — OCR 的な用途での活用
+- **チャート・グラフの分析** — データビジュアライゼーションの読み取りと解釈
+
+#### ドキュメント
+- Vision 公式ドキュメント
+
+#### インサイト
+- Vision ローンチブログ記事
+
+---
 
 ### 14. Computer Use
 
-Claude にデスクトップ環境を操作させる機能。
+Claude モデルに**コンピュータのデスクトップ環境を操作**させる方法を学びます。マウスクリック、キーボード入力、スクリーンショットの取得など、GUI 操作を自動化できます。
 
-- クイックスタートデモ
-- Anthropic API との統合
-- データ処理ドキュメント
+#### はじめに
+- **Computer Use クイックスタート** — 最小限のセットアップで動作確認
+- **Anthropic API での Computer Use 実装** — プログラマティックな統合手順
+
+#### ドキュメント
+- **データ処理に関するドキュメント** — Computer Use がデータをどのように扱うかの説明（プライバシーとセキュリティ）
+
+#### インサイト
+- Computer Use の開発過程 — 技術的な開発背景の解説
+- Computer Use ローンチブログ記事
+
+---
 
 ### 15. Hackathon Hacker Guide
 
-ハッカソン参加者向けのクイックスタートリソース。
+ハッカソンイベントや個人プロジェクトで Claude を使い始めるための**クイックスタートリソース集**です。
 
-- 開発者アカウントのセットアップと API キーの取得
-- 最初の API 呼び出し
-- Claude Code のインストール
-- Anthropic Cookbook のコード例
-- クイックスタートリポジトリ
+#### はじめに
+1. **開発者アカウントのセットアップ** — [Anthropic Console](https://console.anthropic.com/) で API キーを生成
+2. **最初の API 呼び出し** — クイックスタートガイドに従って動作確認
+3. **Claude Code のインストール** — `npm install -g @anthropic-ai/claude-code` で即座に開始
+
+#### キット & プロジェクト
+- **Anthropic Cookbook** — コードスニペットと一般的なワークフローのガイド集
+- **Anthropic Quickstarts リポジトリ** — すぐに使えるアプリケーションテンプレート
+
+#### ドキュメント
+- 全 API ドキュメント — すべての機能とプロダクトのリファレンス
+- ハッカソンワークショップスライド
+
+---
 
 ## このトラックの活用方法
 
-1. **初めての方**: まず「APIs & SDKs」で基本的な API 呼び出しを学ぶ
-2. **アプリ開発**: 「Tool Use」「RAG」「Agents」で実践的な機能を実装
-3. **品質向上**: 「Prompt Engineering」「Evaluations」で出力品質を最適化
-4. **本番運用**: 「Prompt Caching」でコスト最適化、クラウド統合で本番デプロイ
+### 学習パス（推奨順序）
+
+1. **初めての方**: まず「APIs & SDKs」で基本的な API 呼び出しを学び、[Building with the Claude API](https://anthropic.skilljar.com/claude-with-the-anthropic-api) コースを受講
+2. **ツール統合**: 「Tool Use」「MCP」で外部ツール連携の基本を習得
+3. **アプリ開発**: 「RAG」「Agents」「Extended Thinking」で実践的な機能を実装
+4. **品質向上**: 「Prompt Engineering」「Evaluations」で出力品質を体系的に最適化
+5. **本番運用**: 「Prompt Caching」でコスト最適化、「Claude 4.5 Models」でモデル選択を最適化
+6. **高度な機能**: 「Vision」「Computer Use」「Skills」で応用領域を拡大
+
+### 関連コース一覧
+
+| コース | トピック |
+|--------|----------|
+| [Building with the Claude API](https://anthropic.skilljar.com/claude-with-the-anthropic-api) | APIs & SDKs |
+| [Claude Code in Action](https://anthropic.skilljar.com/claude-code-in-action) | Claude Code |
+| [Introduction to Model Context Protocol](https://anthropic.skilljar.com/introduction-to-model-context-protocol) | MCP |
+| [Model Context Protocol: Advanced Topics](https://anthropic.skilljar.com/model-context-protocol-advanced-topics) | MCP |
+| [Introduction to Agent Skills](https://anthropic.skilljar.com/introduction-to-agent-skills) | Skills |
+| [Claude with Amazon Bedrock](https://anthropic.skilljar.com/claude-in-amazon-bedrock) | APIs & SDKs |
+| [Claude with Google Cloud's Vertex AI](https://anthropic.skilljar.com/claude-with-google-vertex) | APIs & SDKs |

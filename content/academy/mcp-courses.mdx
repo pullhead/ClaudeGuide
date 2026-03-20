@@ -1,12 +1,26 @@
-# MCP コース（入門 + 上級）
+# MCP コース（入門 + 上級）― 完全日本語ガイド
 
 [Introduction to Model Context Protocol](https://anthropic.skilljar.com/introduction-to-model-context-protocol) | [Advanced Topics](https://anthropic.skilljar.com/model-context-protocol-advanced-topics)
 
+---
+
 ## Model Context Protocol（MCP）とは
 
-Model Context Protocol（MCP）は、AI モデルが外部のツール、データソース、サービスにアクセスするための**オープンな標準プロトコル**です。Anthropic が開発し、オープンソースとして公開しています。MCP を使うことで、Claude をさまざまな外部システムと統合し、その能力を大幅に拡張できます。
+Model Context Protocol（MCP）は、AI アプリケーションを外部システムに接続するための**オープンソース標準プロトコル**です。Anthropic が開発し、オープンソースとして公開しています。
 
-Anthropic Academy では、MCP に関する2つのコースが提供されています。
+MCP を「AI アプリケーション用の USB-C ポート」と考えるとわかりやすくなります。USB-C が電子機器を接続する標準規格であるように、MCP は AI アプリケーションを外部のデータソース（ローカルファイル、データベースなど）、ツール（検索エンジン、計算機など）、ワークフロー（専用プロンプトなど）に接続する標準規格です。
+
+### MCP が解決する課題
+
+MCP が登場する以前、AI アプリケーションと外部システムの統合は **N×M 問題**に直面していました。N 個の AI アプリケーションと M 個の外部サービスを接続する場合、N×M 個の個別統合が必要でした。MCP はこの問題を解消し、各 AI アプリケーションは MCP クライアントを実装するだけ、各外部サービスは MCP サーバーを実装するだけで、すべての組み合わせが動作するようになります。
+
+### MCP のエコシステム
+
+MCP はオープンプロトコルとして、幅広いクライアントとサーバーでサポートされています。
+
+- **AI アシスタント**: Claude、ChatGPT
+- **開発ツール**: Visual Studio Code（Copilot）、Cursor、Claude Code
+- **その他**: MCPJam など多数のクライアント
 
 ---
 
@@ -14,34 +28,747 @@ Anthropic Academy では、MCP に関する2つのコースが提供されてい
 
 [受講する](https://anthropic.skilljar.com/introduction-to-model-context-protocol)
 
-### 概要
+### コース概要
 
-MCP の基本概念とセットアップ方法を学ぶ入門コースです。MCP を初めて使う開発者を対象に、プロトコルの仕組みから実際の設定までをステップバイステップで解説します。
+Python を使って MCP サーバーとクライアントをゼロから構築する方法を学ぶ入門コースです。MCP の3つのコアプリミティブ（Tools、Resources、Prompts）をマスターし、Claude を外部サービスに接続する技術を身につけます。
 
-### 学習内容
+**前提条件**: Python プログラミングの実務知識、JSON と HTTP リクエスト/レスポンスパターンの基本的な理解
 
-#### MCP の基本概念
+### 学習目標
 
-- MCP のアーキテクチャ（ホスト、クライアント、サーバーの関係）
-- MCP が解決する課題（N×M 統合問題の解消）
-- MCP の3つのプリミティブ（Tools、Resources、Prompts）
+- MCP アーキテクチャと、ツール定義・実行の負担を専用 MCP サーバーに移す仕組みの理解
+- MCP のトランスポート非依存な通信システムと、クライアント-サーバー間のメッセージタイプの理解
+- ユーザークエリから MCP クライアント、外部サービス、そして Claude に戻る完全なリクエスト-レスポンスフローの把握
+- Python SDK を使用した MCP サーバーの構築（デコレーターによるツール定義）
+- MCP Server Inspector を使ったテストとデバッグ
+- リソース（読み取り専用データ）の定義と MIME タイプ処理
+- 高品質なワークフローテンプレートとしてのプロンプト構築
+- 各プリミティブの使い分け判断
 
-#### セットアップと設定
+---
 
-- MCP サーバーのインストールと基本設定
-- Claude Desktop での MCP サーバー設定方法
-- 設定ファイル（`claude_desktop_config.json`）の書き方
+### モジュール1: MCP アーキテクチャ
 
-#### プリビルトサーバーの利用
+#### 参加者（Participants）
 
-- 既存の MCP サーバー（ファイルシステム、GitHub、Slack、データベースなど）の導入方法
-- npm / uvx を使ったサーバーの起動
-- トラブルシューティングの基本
+MCP はクライアント-サーバーアーキテクチャに従います。
 
-#### 実践演習
+```
+┌─────────────────────────────────────────────┐
+│           MCP ホスト（AI アプリケーション）        │
+│                                             │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐   │
+│  │MCPクライ  │ │MCPクライ  │ │MCPクライ  │   │
+│  │アント1    │ │アント2    │ │アント3    │   │
+│  └─────┬────┘ └─────┬────┘ └─────┬────┘   │
+└────────┼────────────┼────────────┼─────────┘
+         │            │            │
+    専用接続       専用接続      専用接続
+         │            │            │
+   ┌─────┴────┐ ┌─────┴────┐ ┌────┴─────┐
+   │MCPサーバーA│ │MCPサーバーB│ │MCPサーバーC│
+   │(ローカル)  │ │(ローカル)  │ │(リモート)  │
+   │ファイル    │ │データベース│ │ Sentry    │
+   └──────────┘ └──────────┘ └──────────┘
+```
 
-- Claude Desktop から MCP サーバー経由でツールを利用する
-- ローカルファイルの操作やデータベースクエリの実行
+| 参加者 | 役割 |
+|--------|------|
+| **MCP ホスト** | AI アプリケーション本体。1つ以上の MCP クライアントを管理・調整する（例: Claude Desktop、VS Code、Claude Code） |
+| **MCP クライアント** | MCP サーバーとの接続を維持し、サーバーからコンテキストを取得してホストに提供するコンポーネント |
+| **MCP サーバー** | MCP クライアントにコンテキスト（ツール、リソース、プロンプト）を提供するプログラム |
+
+**重要**: MCP サーバーはローカルでもリモートでも実行できます。
+
+- **ローカルサーバー**: stdio トランスポートを使用し、同一マシン上でサブプロセスとして実行（例: ファイルシステムサーバー）
+- **リモートサーバー**: Streamable HTTP トランスポートを使用し、別のサーバー上で実行（例: Sentry MCP サーバー）
+
+#### 2つのレイヤー
+
+MCP は2層構造で構成されます。
+
+**データレイヤー（内側）**
+
+JSON-RPC 2.0 ベースのメッセージ交換プロトコルを実装します。
+
+- **ライフサイクル管理**: 接続の初期化、能力ネゴシエーション、接続の終了
+- **サーバー機能**: ツール（AI アクション）、リソース（コンテキストデータ）、プロンプト（インタラクションテンプレート）
+- **クライアント機能**: サンプリング（LLM 補完の要求）、エリシテーション（ユーザー入力の要求）、ロギング
+- **ユーティリティ機能**: 通知（リアルタイム更新）、進捗追跡（長時間操作）
+
+**トランスポートレイヤー（外側）**
+
+クライアントとサーバー間の通信チャネルと認証を管理します。
+
+- **stdio トランスポート**: 標準入出力ストリームを使用したローカルプロセス間通信
+- **Streamable HTTP トランスポート**: HTTP POST によるクライアント→サーバー通信と、オプションの SSE（Server-Sent Events）によるストリーミング
+
+#### ライフサイクル管理
+
+MCP はステートフルなプロトコルで、接続開始時に能力ネゴシエーションのハンドシェイクが必要です。
+
+**1. 初期化リクエスト（クライアント → サーバー）**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {
+      "elicitation": {}
+    },
+    "clientInfo": {
+      "name": "example-client",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+**2. 初期化レスポンス（サーバー → クライアント）**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {
+      "tools": { "listChanged": true },
+      "resources": {}
+    },
+    "serverInfo": {
+      "name": "example-server",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+**3. 初期化完了通知（クライアント → サーバー）**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/initialized"
+}
+```
+
+初期化プロセスの目的:
+
+1. **プロトコルバージョンのネゴシエーション**: 互換性のあるバージョンの確認
+2. **能力（Capability）の発見**: 各プリミティブ（Tools、Resources、Prompts）や通知のサポート宣言
+3. **アイデンティティ交換**: デバッグと互換性のための識別情報
+
+---
+
+### モジュール2: 3つのプリミティブ — Tools
+
+#### 概念
+
+Tools は MCP サーバーが公開する**実行可能な関数**です。AI モデルが外部システムと対話するために呼び出せます（データベースクエリ、API 呼び出し、ファイル操作など）。
+
+**制御モデル**: **モデル制御**（model-controlled）— 言語モデルが文脈に基づいて自動的にツールを発見・呼び出します。
+
+#### ツールの発見（Discovery）
+
+クライアントは `tools/list` リクエストで利用可能なツールを発見します。
+
+```json
+// リクエスト
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list"
+}
+
+// レスポンス
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "get_weather",
+        "title": "Weather Information Provider",
+        "description": "指定された場所の現在の天気情報を取得します",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "都市名または郵便番号"
+            }
+          },
+          "required": ["location"]
+        }
+      }
+    ]
+  }
+}
+```
+
+ツール定義の各フィールド:
+
+| フィールド | 説明 |
+|------------|------|
+| `name` | ツールの一意識別子（例: `get_weather`） |
+| `title` | 表示用の人間が読める名前 |
+| `description` | ツールの機能と使用タイミングの説明 |
+| `inputSchema` | 入力パラメータの JSON Schema 定義 |
+| `outputSchema` | （オプション）出力の構造化スキーマ |
+| `annotations` | （オプション）ツールの動作に関するメタデータ |
+
+#### ツールの実行（Invocation）
+
+```json
+// リクエスト
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "get_weather",
+    "arguments": {
+      "location": "東京"
+    }
+  }
+}
+
+// レスポンス
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "東京の現在の天気: 22°C、晴れ、西風 3m/s、湿度 55%"
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
+#### ツール結果のコンテンツタイプ
+
+ツールの結果は複数のコンテンツタイプを含むことができます。
+
+| タイプ | 説明 |
+|--------|------|
+| `text` | テキストコンテンツ |
+| `image` | Base64 エンコードされた画像データ |
+| `audio` | Base64 エンコードされたオーディオデータ |
+| `resource_link` | リソースへのリンク（URI） |
+| `resource` | 埋め込みリソース |
+
+**構造化コンテンツ**: `outputSchema` を定義すると、`structuredContent` フィールドで JSON オブジェクトとして構造化された結果を返せます。後方互換性のため、`content` フィールドにも TextContent ブロックとして直列化した JSON を含めるべきです。
+
+#### Python SDK でのツール定義
+
+Python SDK ではデコレーターを使ってツールを定義します。JSON Schema を手書きする代わりに、型ヒントと Field 説明を使います。
+
+```python
+from mcp.server import Server
+from pydantic import Field
+
+app = Server("my-server")
+
+@app.tool()
+async def get_weather(
+    location: str = Field(description="都市名または郵便番号"),
+    units: str = Field(default="metric", description="温度の単位")
+) -> str:
+    """指定された場所の現在の天気情報を取得します"""
+    # 天気 API を呼び出す実装
+    return f"{location}の天気: 22°C、晴れ"
+```
+
+#### エラーハンドリング
+
+MCP のツールには2種類のエラー報告メカニズムがあります。
+
+**1. プロトコルエラー**: 標準 JSON-RPC エラー
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "error": {
+    "code": -32602,
+    "message": "Unknown tool: invalid_tool_name"
+  }
+}
+```
+
+**2. ツール実行エラー**: `isError: true` で報告
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "天気データの取得に失敗: API レート制限超過"
+      }
+    ],
+    "isError": true
+  }
+}
+```
+
+#### セキュリティのベストプラクティス
+
+- サーバーは全ツール入力を**バリデーション**すること
+- 適切な**アクセス制御**を実装すること
+- ツール呼び出しの**レート制限**を実装すること
+- ツール出力を**サニタイズ**すること
+- クライアントは機密操作についてユーザーに**確認**を求めること
+- クライアントはツール呼び出しの**タイムアウト**を設定すること
+
+---
+
+### モジュール3: 3つのプリミティブ — Resources
+
+#### 概念
+
+Resources は MCP サーバーがクライアントに公開する**データソース**です。ファイルの内容、データベーススキーマ、API レスポンスなど、言語モデルにコンテキスト情報を提供します。各リソースは URI で一意に識別されます。
+
+**制御モデル**: **アプリケーション制御**（application-driven）— ホストアプリケーションがコンテキストの取り込み方法を決定します。
+
+アプリケーションでの表示例:
+- ツリービューやリストビューでのリソース選択 UI
+- 検索・フィルタリング機能
+- ヒューリスティクスや AI モデルの選択に基づく自動コンテキスト取り込み
+
+#### リソースの発見と読み取り
+
+**リソース一覧の取得（`resources/list`）**
+
+```json
+// レスポンス
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "resources": [
+      {
+        "uri": "file:///project/src/main.rs",
+        "name": "main.rs",
+        "title": "Rust アプリケーションのメインファイル",
+        "description": "アプリケーションのエントリーポイント",
+        "mimeType": "text/x-rust"
+      }
+    ]
+  }
+}
+```
+
+**リソースの読み取り（`resources/read`）**
+
+```json
+// リクエスト
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "resources/read",
+  "params": {
+    "uri": "file:///project/src/main.rs"
+  }
+}
+
+// レスポンス
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "contents": [
+      {
+        "uri": "file:///project/src/main.rs",
+        "mimeType": "text/x-rust",
+        "text": "fn main() {\n    println!(\"Hello world!\");\n}"
+      }
+    ]
+  }
+}
+```
+
+#### リソーステンプレート
+
+リソーステンプレートを使うと、URI テンプレート（RFC 6570）でパラメータ化されたリソースを公開できます。
+
+```json
+{
+  "resourceTemplates": [
+    {
+      "uriTemplate": "file:///{path}",
+      "name": "Project Files",
+      "description": "プロジェクトディレクトリ内のファイルにアクセス",
+      "mimeType": "application/octet-stream"
+    }
+  ]
+}
+```
+
+#### サブスクリプション
+
+リソースの変更を監視するための購読メカニズムが用意されています。
+
+```json
+// 購読リクエスト
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "resources/subscribe",
+  "params": {
+    "uri": "file:///project/src/main.rs"
+  }
+}
+
+// 更新通知（サーバー → クライアント）
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/resources/updated",
+  "params": {
+    "uri": "file:///project/src/main.rs"
+  }
+}
+```
+
+#### リソースのデータ型
+
+リソースの定義には以下のフィールドが含まれます。
+
+| フィールド | 説明 |
+|------------|------|
+| `uri` | リソースの一意識別子（URI） |
+| `name` | リソース名 |
+| `title` | （オプション）表示用の人間が読める名前 |
+| `description` | （オプション）説明 |
+| `mimeType` | （オプション）MIME タイプ |
+| `size` | （オプション）バイト単位のサイズ |
+
+リソースの内容はテキストまたはバイナリ（Base64 エンコード blob）として返されます。
+
+#### アノテーション
+
+リソースとコンテンツブロックにはオプションのアノテーションを付けられます。
+
+| フィールド | 説明 |
+|------------|------|
+| `audience` | 対象者の配列（`"user"`, `"assistant"`） |
+| `priority` | 重要度（0.0〜1.0、1 が最重要） |
+| `lastModified` | ISO 8601 形式の最終更新日時 |
+
+#### 一般的な URI スキーム
+
+| スキーム | 用途 |
+|----------|------|
+| `https://` | Web 上で直接取得可能なリソース |
+| `file://` | ファイルシステム的なリソース（実際の物理ファイルシステムである必要はない） |
+| `git://` | Git バージョン管理統合 |
+| カスタム | RFC 3986 に準拠した任意のスキーム |
+
+---
+
+### モジュール4: 3つのプリミティブ — Prompts
+
+#### 概念
+
+Prompts は MCP サーバーがクライアントに公開する**再利用可能なテンプレート**です。言語モデルとのインタラクションを構造化するための事前作成された高品質な指示（システムプロンプト、Few-shot 例など）を提供します。
+
+**制御モデル**: **ユーザー制御**（user-controlled）— ユーザーが明示的にプロンプトを選択して使用します。
+
+典型的な表示パターン: スラッシュコマンド（例: `/code-review`）としてユーザーインターフェースに公開されます。
+
+#### プロンプトの発見と取得
+
+**プロンプト一覧の取得（`prompts/list`）**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "prompts": [
+      {
+        "name": "code_review",
+        "title": "コードレビューのリクエスト",
+        "description": "コード品質を分析し改善を提案するよう LLM に依頼します",
+        "arguments": [
+          {
+            "name": "code",
+            "description": "レビュー対象のコード",
+            "required": true
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**プロンプトの取得（`prompts/get`）**
+
+```json
+// リクエスト
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "prompts/get",
+  "params": {
+    "name": "code_review",
+    "arguments": {
+      "code": "def hello():\n    print('world')"
+    }
+  }
+}
+
+// レスポンス
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "description": "コードレビュープロンプト",
+    "messages": [
+      {
+        "role": "user",
+        "content": {
+          "type": "text",
+          "text": "この Python コードをレビューしてください:\ndef hello():\n    print('world')"
+        }
+      }
+    ]
+  }
+}
+```
+
+#### プロンプトメッセージのコンテンツタイプ
+
+| タイプ | 説明 |
+|--------|------|
+| `text` | テキストメッセージ |
+| `image` | Base64 エンコード画像（MIME タイプ必須） |
+| `audio` | Base64 エンコードオーディオ（MIME タイプ必須） |
+| `resource` | 埋め込みリソース（サーバー管理コンテンツの参照） |
+
+#### 3つのプリミティブの使い分け
+
+| プリミティブ | 制御主体 | 用途 | 例 |
+|-------------|---------|------|-----|
+| **Tools** | モデル | AI が外部システムでアクションを実行 | API 呼び出し、DB クエリ、ファイル操作 |
+| **Resources** | アプリ | AI にコンテキストデータを提供 | ファイル内容、DB スキーマ、設定情報 |
+| **Prompts** | ユーザー | ワークフローの構造化テンプレート | コードレビュー手順、ドキュメント整形 |
+
+---
+
+### モジュール5: セットアップと設定
+
+#### Claude Desktop での MCP サーバー設定
+
+Claude Desktop で MCP サーバーを使用するには、設定ファイル `claude_desktop_config.json` を編集します。
+
+**設定ファイルの場所**:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+**設定例（npm パッケージのサーバー）**:
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/username/Documents"
+      ]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_xxxx"
+      }
+    }
+  }
+}
+```
+
+**設定例（uvx を使用した Python サーバー）**:
+
+```json
+{
+  "mcpServers": {
+    "sqlite": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-sqlite",
+        "--db-path",
+        "/path/to/database.db"
+      ]
+    }
+  }
+}
+```
+
+各サーバー設定のフィールド:
+
+| フィールド | 説明 |
+|------------|------|
+| `command` | 実行するコマンド（`npx`, `uvx`, `node`, `python` など） |
+| `args` | コマンドライン引数の配列 |
+| `env` | 環境変数のオブジェクト（API キーなど） |
+
+#### MCP Server Inspector
+
+MCP Server Inspector は、MCP サーバーをテスト・デバッグするためのブラウザベースのツールです。
+
+```bash
+npx @modelcontextprotocol/inspector
+```
+
+Inspector を使うと:
+- サーバーに接続してツール、リソース、プロンプトを一覧表示
+- ツールを直接実行してレスポンスを確認
+- リソースを読み取り内容を検証
+- OAuth 認証フローのテスト
+
+---
+
+### モジュール6: プリビルトサーバーの利用
+
+MCP エコシステムには多数のプリビルトサーバーが用意されています。
+
+#### 主要なプリビルトサーバー
+
+| サーバー | パッケージ | 機能 |
+|----------|-----------|------|
+| **Filesystem** | `@modelcontextprotocol/server-filesystem` | ローカルファイルの読み書き、ディレクトリ操作 |
+| **GitHub** | `@modelcontextprotocol/server-github` | リポジトリ操作、Issue/PR 管理 |
+| **SQLite** | `mcp-server-sqlite`（Python） | SQLite データベースのクエリ、スキーマ参照 |
+| **PostgreSQL** | `@modelcontextprotocol/server-postgres` | PostgreSQL データベースへのアクセス |
+| **Slack** | `@modelcontextprotocol/server-slack` | Slack メッセージの送受信、チャンネル操作 |
+| **Google Drive** | `@modelcontextprotocol/server-gdrive` | Google Drive ファイルへのアクセス |
+
+#### インストールと起動の手順
+
+**1. npm パッケージの場合**:
+
+```bash
+# npx で直接実行（インストール不要）
+npx -y @modelcontextprotocol/server-filesystem /path/to/directory
+
+# グローバルインストールして実行
+npm install -g @modelcontextprotocol/server-filesystem
+mcp-server-filesystem /path/to/directory
+```
+
+**2. Python パッケージの場合**:
+
+```bash
+# uvx で直接実行
+uvx mcp-server-sqlite --db-path /path/to/database.db
+
+# pip でインストールして実行
+pip install mcp-server-sqlite
+mcp-server-sqlite --db-path /path/to/database.db
+```
+
+#### トラブルシューティング
+
+| 問題 | 対処法 |
+|------|--------|
+| サーバーが起動しない | コマンドパスが正しいか確認。`which npx` や `which uvx` で確認 |
+| ツールが表示されない | Claude Desktop を再起動。設定ファイルの JSON 構文を確認 |
+| 認証エラー | 環境変数（API キーなど）が正しく設定されているか確認 |
+| タイムアウト | ネットワーク接続を確認。ローカルサーバーの場合はプロセスが起動しているか確認 |
+
+---
+
+### モジュール7: 実践演習
+
+#### 演習1: ファイルシステムサーバーの設定と利用
+
+1. `claude_desktop_config.json` にファイルシステムサーバーを追加
+2. Claude Desktop を再起動
+3. 「Documents フォルダのファイル一覧を表示して」と指示
+4. ファイルの読み取りや検索を試す
+
+#### 演習2: Python SDK での MCP サーバー構築
+
+```python
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from pydantic import Field
+
+app = Server("document-manager")
+
+# ツールの定義
+@app.tool()
+async def read_document(
+    filename: str = Field(description="読み取るファイル名")
+) -> str:
+    """ドキュメントを読み取ります"""
+    with open(filename, "r") as f:
+        return f.read()
+
+@app.tool()
+async def edit_document(
+    filename: str = Field(description="編集するファイル名"),
+    content: str = Field(description="新しい内容")
+) -> str:
+    """ドキュメントを編集します"""
+    with open(filename, "w") as f:
+        f.write(content)
+    return f"{filename} を更新しました"
+
+# リソースの定義
+@app.resource("file://documents/list")
+async def list_documents() -> str:
+    """利用可能なドキュメントの一覧を返します"""
+    import os
+    files = os.listdir("./documents")
+    return "\n".join(files)
+
+# プロンプトの定義
+@app.prompt()
+async def format_document(
+    style: str = Field(description="フォーマットスタイル: markdown, html, plain")
+) -> list:
+    """ドキュメントフォーマット用のプロンプト"""
+    return [
+        {
+            "role": "user",
+            "content": {
+                "type": "text",
+                "text": f"以下のドキュメントを {style} 形式にフォーマットしてください。"
+            }
+        }
+    ]
+
+# サーバーの起動
+async def main():
+    async with stdio_server() as (read, write):
+        await app.run(read, write)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+#### 演習3: MCP Server Inspector でのテスト
+
+1. `npx @modelcontextprotocol/inspector` を起動
+2. 作成したサーバーに接続
+3. ツール一覧を確認し、各ツールを実行
+4. リソースを読み取り、プロンプトを取得
 
 ---
 
@@ -49,49 +776,685 @@ MCP の基本概念とセットアップ方法を学ぶ入門コースです。M
 
 [受講する](https://anthropic.skilljar.com/model-context-protocol-advanced-topics)
 
-### 概要
+### コース概要
 
-MCP の高度なトピックを扱う上級コースです。入門コースの知識を前提に、リモートサーバーのデプロイ、MCP Connector の活用、複雑なインテグレーションパターンを学びます。
+MCP の高度なトピックを扱う上級コースです。サンプリング、通知システム、ファイルシステムアクセス制御、トランスポートメカニズム、本番環境でのスケーリングなど、プロダクション対応の MCP サーバー開発に必要な知識を習得します。
 
-### 学習内容
+**前提条件**: Python 開発と非同期プログラミングパターンの経験、JSON メッセージ形式と HTTP プロトコルの知識、SSE（Server-Sent Events）の基礎知識
+
+### 学習目標
+
+- MCP サーバーがクライアント経由で LLM 呼び出しをリクエストするサンプリングの実装
+- 進捗通知とロギングによるリアルタイムフィードバックシステムの構築
+- Roots ベースのファイルアクセスとパーミッションシステムの理解
+- JSON-RPC メッセージアーキテクチャの完全な理解
+- stdio と Streamable HTTP トランスポートの実装と選択基準
+- 本番環境でのスケーリング考慮事項
+
+---
+
+### モジュール1: サンプリング（Sampling）
+
+#### 概念
+
+サンプリングは MCP サーバーが接続中のクライアントを通じて **LLM の補完（completion）をリクエスト**する仕組みです。サーバーは自前で AI API キーを管理する必要なく、クライアントの AI アプリケーション経由で言語モデルの能力を活用できます。
+
+この設計により:
+- **AI コストと複雑さ**: サーバーではなくクライアント側で負担
+- **モデル非依存**: サーバーは特定の LLM SDK を含む必要がない
+- **セキュリティ**: クライアントがモデルアクセスの制御と権限を維持
+
+#### 能力宣言
+
+サンプリングをサポートするクライアントは初期化時に宣言します。
+
+```json
+{
+  "capabilities": {
+    "sampling": {}
+  }
+}
+```
+
+#### プロトコルフロー
+
+```
+サーバー → クライアント: sampling/createMessage リクエスト
+         ↓
+クライアント → ユーザー: リクエストの確認を提示
+         ↓
+ユーザー → クライアント: 承認（または修正）
+         ↓
+クライアント → LLM: 承認されたリクエストを転送
+         ↓
+LLM → クライアント: 生成結果を返却
+         ↓
+クライアント → ユーザー: レスポンスの確認を提示
+         ↓
+ユーザー → クライアント: 承認（または修正）
+         ↓
+クライアント → サーバー: 承認されたレスポンスを返却
+```
+
+**重要**: 信頼性とセキュリティのため、サンプリングリクエストの承認/拒否には常に**人間がループに入る**べきです。
+
+#### リクエスト例
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "sampling/createMessage",
+  "params": {
+    "messages": [
+      {
+        "role": "user",
+        "content": {
+          "type": "text",
+          "text": "フランスの首都はどこですか？"
+        }
+      }
+    ],
+    "modelPreferences": {
+      "hints": [
+        { "name": "claude-3-sonnet" },
+        { "name": "claude" }
+      ],
+      "intelligencePriority": 0.8,
+      "speedPriority": 0.5,
+      "costPriority": 0.3
+    },
+    "systemPrompt": "あなたは親切なアシスタントです。",
+    "maxTokens": 100
+  }
+}
+```
+
+#### モデルプリファレンス
+
+サーバーはクライアントが使用する AI プロバイダーとモデルを知りません。そのため、MCP はプリファレンスシステムを実装しています。
+
+**能力プライオリティ**（0〜1 の正規化値）:
+
+| パラメータ | 説明 |
+|-----------|------|
+| `costPriority` | コスト最小化の重要度。高い値 → より安価なモデルを選択 |
+| `speedPriority` | 低レイテンシの重要度。高い値 → より高速なモデルを選択 |
+| `intelligencePriority` | 高度な能力の重要度。高い値 → より高性能なモデルを選択 |
+
+**モデルヒント**: サーバーが特定のモデルやモデルファミリーを提案。ヒントは部分文字列マッチングで柔軟に動作します。クライアントはヒントを別プロバイダーの同等モデルにマッピングできます（例: `claude-3-sonnet` → `gemini-1.5-pro`）。
+
+---
+
+### モジュール2: 通知とロギング
+
+#### 通知（Notifications）
+
+MCP は JSON-RPC 2.0 の通知メカニズム（レスポンスが不要なメッセージ）をサポートし、リアルタイム更新を実現します。
+
+**ツールリスト変更通知**:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/tools/list_changed"
+}
+```
+
+**リソースリスト変更通知**:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/resources/list_changed"
+}
+```
+
+**プロンプトリスト変更通知**:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/prompts/list_changed"
+}
+```
+
+通知の特徴:
+- `id` フィールドがない（レスポンス不要）
+- 初期化時に `listChanged: true` を宣言したサーバーのみが送信可能
+- イベント駆動型（サーバーが内部状態の変化に基づいて送信）
+
+#### 進捗通知
+
+長時間操作のリアルタイムフィードバックのために、コンテキストオブジェクトを使った進捗報告と、ロギングコールバックによるメッセージ送信が可能です。
+
+---
+
+### モジュール3: Roots — ファイルシステムアクセス制御
+
+#### 概念
+
+Roots は MCP クライアントがサーバーに対して公開するファイルシステムの**境界**を定義します。サーバーがアクセスできるディレクトリとファイルの範囲を明確にし、セキュリティ境界を維持します。
+
+#### 能力宣言
+
+```json
+{
+  "capabilities": {
+    "roots": {
+      "listChanged": true
+    }
+  }
+}
+```
+
+#### Roots の一覧取得
+
+```json
+// リクエスト（サーバー → クライアント）
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "roots/list"
+}
+
+// レスポンス
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "roots": [
+      {
+        "uri": "file:///home/user/projects/myproject",
+        "name": "My Project"
+      },
+      {
+        "uri": "file:///home/user/repos/frontend",
+        "name": "Frontend Repository"
+      }
+    ]
+  }
+}
+```
+
+#### セキュリティガイドライン
+
+**クライアント側**:
+- 適切なパーミッションのある Roots のみを公開
+- Roots の URI をバリデーションしパストラバーサルを防止
+- Roots を公開する前にユーザーの同意を得る
+- Roots のアクセス可能性を監視
+
+**サーバー側**:
+- Roots が利用不可になった場合を適切にハンドリング
+- 操作時に Root 境界を尊重
+- Root 情報を適切にキャッシュ
+
+---
+
+### モジュール4: トランスポートメカニズム
+
+#### stdio トランスポート
+
+ローカルプロセス間の通信に最適です。
+
+**動作方式**:
+1. クライアントが MCP サーバーをサブプロセスとして起動
+2. サーバーは `stdin` から JSON-RPC メッセージを読み取り、`stdout` にメッセージを書き込む
+3. メッセージは改行で区切られ、埋め込み改行は不可
+4. `stderr` はログ出力に使用可能
+
+```
+クライアント ──stdin──→ サーバープロセス
+クライアント ←─stdout── サーバープロセス
+            ←─stderr── （オプション: ログ）
+```
+
+**特徴**:
+- ネットワークオーバーヘッドなし（最高のパフォーマンス）
+- 単一クライアントのみ対応
+- ローカル実行のみ
+
+#### Streamable HTTP トランスポート
+
+リモートサーバーとの通信に最適です。（旧 HTTP+SSE トランスポートの後継）
+
+**動作方式**:
+1. サーバーは単一の MCP エンドポイント（例: `https://example.com/mcp`）を提供
+2. クライアントは HTTP POST でメッセージを送信
+3. サーバーはレスポンスとして JSON（単一応答）または SSE ストリーム（複数メッセージ）を返す
+4. クライアントは HTTP GET で SSE ストリームを開き、サーバーからの通知を受信可能
+
+**POST リクエストのルール**:
+- `Accept` ヘッダーに `application/json` と `text/event-stream` の両方を含める
+- リクエストボディは単一の JSON-RPC メッセージ
+- レスポンスの Content-Type が `application/json` または `text/event-stream` のどちらかになる
+
+**セッション管理**:
+- サーバーは初期化時にセッション ID を `Mcp-Session-Id` ヘッダーで返せる
+- クライアントは以降のリクエストでこのヘッダーを含める
+- セッション ID は暗号的に安全であるべき（UUID、JWT、ハッシュなど）
+
+```json
+// 初期化レスポンスヘッダー
+Mcp-Session-Id: 1868a90c-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+// 以降のリクエストヘッダー
+Mcp-Session-Id: 1868a90c-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+MCP-Protocol-Version: 2025-06-18
+```
+
+**再接続とメッセージ再配信**:
+- サーバーは SSE イベントに `id` を付与可能
+- クライアントは切断後に `Last-Event-ID` ヘッダーで再接続
+- サーバーはそのストリーム内の未配信メッセージを再送可能
+
+**セキュリティ上の警告**:
+- DNS リバインディング攻撃を防ぐため、`Origin` ヘッダーを検証すること
+- ローカル実行時は `127.0.0.1` にバインドし、`0.0.0.0` を避けること
+- すべての接続に適切な認証を実装すること
+
+#### トランスポート選択基準
+
+| 基準 | stdio | Streamable HTTP |
+|------|-------|-----------------|
+| **デプロイ** | ローカルのみ | ローカル/リモート |
+| **クライアント数** | 単一 | 複数 |
+| **パフォーマンス** | 最高（ネットワークなし） | ネットワーク依存 |
+| **サーバー開始通知** | 完全対応 | 設定に依存 |
+| **水平スケーリング** | 不可 | ステートレス構成で可能 |
+| **ストリーミング** | 対応 | SSE で対応 |
+| **認証** | 不要（ローカル） | OAuth/Bearer トークン |
+
+**選択の目安**:
+- ローカル開発やデスクトップアプリ → **stdio**
+- 本番デプロイ、マルチユーザー、リモートアクセス → **Streamable HTTP**
+- 水平スケーリングが必要 → **ステートレス Streamable HTTP**（ただし機能制限あり）
+
+---
+
+### モジュール5: リモート MCP サーバーと OAuth 認証
 
 #### リモート MCP サーバー
 
-- リモートサーバーのデプロイと運用
-- OAuth 2.1 を使った認証フロー
-- セキュリティのベストプラクティス
+リモート MCP サーバーは Streamable HTTP トランスポートを使用してインターネット経由でアクセスされるサーバーです。
 
-#### MCP Connector
+**特徴**:
+- 公開された HTTPS エンドポイントが必要
+- 複数クライアントの同時接続をサポート
+- OAuth 2.1 による認証フローをサポート
+- ロードバランサーによる水平スケーリングが可能
 
-- MCP Connector を使った Messages API との統合
-- サーバーサイドアプリケーションからの MCP 利用
-- プログラマティックな MCP サーバーアクセス
+#### OAuth 2.1 認証フロー
 
-#### 高度なパターン
+MCP では HTTP トランスポートの認証に OAuth を推奨しています。
 
-- 複数の MCP サーバーの連携
-- カスタム MCP サーバーの開発
-- エンタープライズ環境での MCP デプロイメント
-- パフォーマンス最適化とエラーハンドリング
+**認証フローの概要**:
 
-#### 実世界のユースケース
+1. クライアントがサーバーに接続を試みる
+2. サーバーが認証を要求
+3. クライアントがユーザーを OAuth 認可画面にリダイレクト
+4. ユーザーが認可を承認
+5. クライアントが認可コードを受け取り、アクセストークンに交換
+6. 以降のリクエストに Bearer トークンを付与
 
-- 社内ツールとの統合事例
-- データパイプラインへの MCP 組み込み
-- マルチエージェントシステムでの MCP 活用
+**MCP Inspector を使ったトークン取得（テスト用）**:
+
+```bash
+npx @modelcontextprotocol/inspector
+```
+
+1. サイドバーで Transport type に「SSE」または「Streamable HTTP」を選択
+2. MCP サーバーの URL を入力
+3. 「Open Auth Settings」をクリック
+4. 「Quick OAuth Flow」で OAuth 画面での認可を実行
+5. 「OAuth Flow Progress」のステップに従い完了
+6. `access_token` をコピーしてサーバー設定に使用
+
+---
+
+### モジュール6: MCP Connector — Messages API 統合
+
+#### 概念
+
+MCP Connector は Anthropic の Messages API に組み込まれた機能で、**別途 MCP クライアントを実装せずに**リモート MCP サーバーに直接接続できます。
+
+**主な特徴**:
+- Messages API からの直接統合（別途 MCP クライアント実装不要）
+- MCP ツール呼び出しのサポート
+- 柔軟なツール設定（全有効化、許可リスト、拒否リスト）
+- ツールごとの個別設定
+- OAuth Bearer トークンによる認証
+- 複数サーバーへの同時接続
+
+**現在の制限事項**:
+- MCP 仕様のうちツール呼び出しのみサポート（Resources、Prompts は未対応）
+- HTTP 経由で公開されたサーバーのみ（ローカル stdio サーバーは接続不可）
+- Amazon Bedrock と Google Vertex では未サポート
+
+#### 基本的な使用方法
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.beta.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1000,
+    messages=[{"role": "user", "content": "利用可能なツールは何ですか？"}],
+    mcp_servers=[
+        {
+            "type": "url",
+            "url": "https://example-server.modelcontextprotocol.io/sse",
+            "name": "example-mcp",
+            "authorization_token": "YOUR_TOKEN",
+        }
+    ],
+    tools=[{"type": "mcp_toolset", "mcp_server_name": "example-mcp"}],
+    betas=["mcp-client-2025-11-20"],
+)
+```
+
+#### MCP サーバー定義
+
+`mcp_servers` 配列にサーバー接続情報を定義します。
+
+```json
+{
+  "type": "url",
+  "url": "https://example-server.modelcontextprotocol.io/sse",
+  "name": "example-mcp",
+  "authorization_token": "YOUR_TOKEN"
+}
+```
+
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| `type` | string | はい | 現在は `"url"` のみ |
+| `url` | string | はい | MCP サーバーの URL。`https://` で始まること |
+| `name` | string | はい | サーバーの一意識別子 |
+| `authorization_token` | string | いいえ | OAuth アクセストークン |
+
+#### MCP Toolset 設定
+
+`tools` 配列にツールセット設定を定義します。
+
+```json
+{
+  "type": "mcp_toolset",
+  "mcp_server_name": "example-mcp",
+  "default_config": {
+    "enabled": true,
+    "defer_loading": false
+  },
+  "configs": {
+    "specific_tool_name": {
+      "enabled": true,
+      "defer_loading": true
+    }
+  }
+}
+```
+
+| プロパティ | 型 | 説明 |
+|-----------|-----|------|
+| `enabled` | boolean | ツールの有効/無効（デフォルト: `true`） |
+| `defer_loading` | boolean | ツール説明の遅延読み込み（デフォルト: `false`） |
+
+**設定のマージ優先度**（高→低）:
+1. `configs` 内のツール固有設定
+2. `default_config` のセットレベル設定
+3. システムデフォルト
+
+#### よくある設定パターン
+
+**パターン1: 全ツール有効化（デフォルト）**
+
+```json
+{
+  "type": "mcp_toolset",
+  "mcp_server_name": "google-calendar-mcp"
+}
+```
+
+**パターン2: 許可リスト（特定ツールのみ有効化）**
+
+```json
+{
+  "type": "mcp_toolset",
+  "mcp_server_name": "google-calendar-mcp",
+  "default_config": { "enabled": false },
+  "configs": {
+    "search_events": { "enabled": true },
+    "create_event": { "enabled": true }
+  }
+}
+```
+
+**パターン3: 拒否リスト（特定ツールのみ無効化）**
+
+```json
+{
+  "type": "mcp_toolset",
+  "mcp_server_name": "google-calendar-mcp",
+  "configs": {
+    "delete_all_events": { "enabled": false },
+    "share_calendar_publicly": { "enabled": false }
+  }
+}
+```
+
+#### レスポンスのコンテンツタイプ
+
+Claude が MCP ツールを使用すると、レスポンスに新しいコンテンツブロックタイプが含まれます。
+
+**MCP Tool Use ブロック**:
+
+```json
+{
+  "type": "mcp_tool_use",
+  "id": "mcptoolu_014Q35RayjACSWkSj4X2yov1",
+  "name": "echo",
+  "server_name": "example-mcp",
+  "input": { "param1": "value1" }
+}
+```
+
+**MCP Tool Result ブロック**:
+
+```json
+{
+  "type": "mcp_tool_result",
+  "tool_use_id": "mcptoolu_014Q35RayjACSWkSj4X2yov1",
+  "is_error": false,
+  "content": [
+    { "type": "text", "text": "Hello" }
+  ]
+}
+```
+
+#### 複数 MCP サーバーへの接続
+
+```json
+{
+  "mcp_servers": [
+    {
+      "type": "url",
+      "url": "https://mcp.example1.com/sse",
+      "name": "mcp-server-1",
+      "authorization_token": "TOKEN1"
+    },
+    {
+      "type": "url",
+      "url": "https://mcp.example2.com/sse",
+      "name": "mcp-server-2",
+      "authorization_token": "TOKEN2"
+    }
+  ],
+  "tools": [
+    { "type": "mcp_toolset", "mcp_server_name": "mcp-server-1" },
+    {
+      "type": "mcp_toolset",
+      "mcp_server_name": "mcp-server-2",
+      "default_config": { "defer_loading": true }
+    }
+  ]
+}
+```
+
+#### TypeScript SDK のクライアントサイドヘルパー
+
+ローカル stdio サーバーや MCP Prompts/Resources を使う場合、TypeScript SDK にはヘルパー関数が用意されています。
+
+```typescript
+import {
+  mcpTools,
+  mcpMessages,
+  mcpResourceToContent,
+  mcpResourceToFile
+} from "@anthropic-ai/sdk/helpers/beta/mcp";
+```
+
+| ヘルパー | 説明 |
+|---------|------|
+| `mcpTools(tools, mcpClient)` | MCP ツールを Claude API ツール形式に変換 |
+| `mcpMessages(messages)` | MCP プロンプトメッセージを Claude API メッセージ形式に変換 |
+| `mcpResourceToContent(resource)` | MCP リソースを Claude API コンテンツブロックに変換 |
+| `mcpResourceToFile(resource)` | MCP リソースをファイルオブジェクトに変換 |
+
+---
+
+### モジュール7: 高度なパターン
+
+#### 複数サーバーの連携
+
+複数の MCP サーバーを同時に利用することで、クロスサーバーのワークフローを構築できます。
+
+**例: データ分析パイプライン**
+
+```
+ユーザー: "データベースから売上データを取得して、グラフにまとめて Slack に投稿して"
+         ↓
+Claude → PostgreSQL MCP サーバー（データクエリ）
+       → チャートサーバー（グラフ生成）
+       → Slack MCP サーバー（メッセージ投稿）
+```
+
+#### カスタム MCP サーバーの開発パターン
+
+**1. データベースラッパー**
+
+```python
+@app.tool()
+async def query_database(
+    sql: str = Field(description="実行する SQL クエリ"),
+    limit: int = Field(default=100, description="結果の最大行数")
+) -> str:
+    """データベースにクエリを実行します（SELECT のみ許可）"""
+    if not sql.strip().upper().startswith("SELECT"):
+        return "エラー: SELECT クエリのみ許可されています"
+    # クエリ実行...
+
+@app.resource("db://schema")
+async def get_schema() -> str:
+    """データベーススキーマを返します"""
+    # スキーマ取得...
+```
+
+**2. API ゲートウェイ**
+
+外部 API をMCP ツールとしてラップし、認証やレート制限をサーバー側で管理します。
+
+**3. ファイル変換サービス**
+
+ファイル形式の変換（PDF→テキスト、画像→説明文など）をツールとして提供します。
+
+#### エラーハンドリングのベストプラクティス
+
+1. **入力バリデーション**: すべてのツール入力をスキーマに基づいて検証
+2. **タイムアウト設定**: 外部 API 呼び出しにタイムアウトを設定
+3. **リトライロジック**: 一時的な障害に対するリトライ（指数バックオフ付き）
+4. **エラーメッセージの構造化**: `isError: true` で明確なエラー情報を返す
+5. **ログ記録**: すべてのツール呼び出しをログに記録し監査に備える
+
+---
+
+### モジュール8: エンタープライズデプロイメント
+
+#### 本番環境でのスケーリング
+
+**水平スケーリング（ステートレス HTTP）**:
+- Streamable HTTP トランスポートをステートレスに設定
+- ロードバランサーで複数サーバーインスタンスに分散
+- セッション管理が不要なため、任意のインスタンスがリクエストを処理可能
+
+**トレードオフ**:
+
+| 構成 | 利点 | 制限 |
+|------|------|------|
+| ステートフル | サーバー開始リクエスト対応、ストリーミング対応 | スケーリングが複雑 |
+| ステートレス | 水平スケーリング容易、ロードバランサー対応 | 一部機能に制限あり |
+
+#### セキュリティのベストプラクティス
+
+1. **認証**: OAuth 2.1 を使用した適切な認証の実装
+2. **暗号化**: HTTPS を必須とし、TLS 1.2 以上を使用
+3. **入力サニタイズ**: インジェクション攻撃の防止
+4. **アクセス制御**: ツールごとの権限管理
+5. **レート制限**: 不正利用防止のためのリクエスト制限
+6. **監査ログ**: すべてのツール呼び出しの記録
+7. **DNS リバインディング対策**: `Origin` ヘッダーの検証
+8. **ローカル実行時**: `127.0.0.1` へのバインド（`0.0.0.0` を避ける）
+
+#### 監視とオブザーバビリティ
+
+- サーバーヘルスチェックエンドポイントの実装
+- ツール実行のメトリクス収集（レイテンシ、成功率、エラー率）
+- 分散トレーシングの導入（マルチサーバー構成時）
+- アラート設定（エラー率上昇、レイテンシ悪化時）
+
+---
+
+## 付録: クライアントプリミティブ一覧
+
+サーバープリミティブ（Tools、Resources、Prompts）に加え、クライアントが公開できるプリミティブもあります。
+
+| プリミティブ | 方向 | 説明 |
+|-------------|------|------|
+| **Sampling** | サーバー→クライアント | サーバーが LLM 補完をリクエスト |
+| **Elicitation** | サーバー→クライアント | サーバーがユーザーに追加情報や確認を要求 |
+| **Logging** | サーバー→クライアント | サーバーがデバッグ/監視用のログメッセージを送信 |
+| **Roots** | サーバー→クライアント | サーバーがファイルシステムの境界情報を取得 |
+
+---
 
 ## 前提条件
 
-- **入門コース**: プログラミングの基礎知識、コマンドラインの基本操作
-- **上級コース**: 入門コースの修了、Web API / サーバー開発の基礎知識
+- **入門コース**: Python プログラミングの実務知識、JSON と HTTP の基礎
+- **上級コース**: 入門コースの修了、非同期プログラミング、SSE の基礎知識
 
 ## 推奨学習順序
 
-1. まず入門コースで MCP の基本を理解する
-2. Claude Desktop で実際に MCP サーバーを設定・利用してみる
-3. 上級コースでリモートサーバーや高度なパターンを学ぶ
-4. 自分のプロジェクトでカスタム MCP サーバーを開発する
+1. 入門コースで MCP の基本アーキテクチャと3つのプリミティブを理解する
+2. Claude Desktop でプリビルトサーバーを設定・利用してみる
+3. Python SDK でカスタム MCP サーバーを構築する
+4. MCP Server Inspector でテスト・デバッグする
+5. 上級コースでトランスポート、サンプリング、Roots を学ぶ
+6. MCP Connector で Messages API との統合を試す
+7. リモートサーバーのデプロイと OAuth 認証を実装する
+8. エンタープライズ環境でのスケーリングとセキュリティを設計する
 
 ## 受講方法
 
 各コースは [Anthropic Academy](https://anthropic.skilljar.com/) で無料で受講できます。修了時には修了証が発行されます。
+
+## 参考リンク
+
+- [MCP 公式サイト](https://modelcontextprotocol.io/)
+- [MCP 仕様書](https://modelcontextprotocol.io/specification/latest)
+- [MCP SDK（Python）](https://github.com/modelcontextprotocol/python-sdk)
+- [MCP SDK（TypeScript）](https://github.com/modelcontextprotocol/typescript-sdk)
+- [MCP Inspector](https://github.com/modelcontextprotocol/inspector)
+- [プリビルトサーバー一覧](https://github.com/modelcontextprotocol/servers)
+- [Anthropic MCP Connector ドキュメント](https://docs.anthropic.com/en/docs/agents-and-tools/mcp-connector)

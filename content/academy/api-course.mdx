@@ -4,71 +4,1442 @@
 
 ## コース概要
 
-Building with the Claude API は、Anthropic API を使って Claude AI をアプリケーションに統合するための**開発者向け実践コース**です。基本的な API 操作から高度なプロンプト技法、ツール統合、アーキテクチャパターンまでを体系的に学べる動画コースです。
+Building with the Claude API は、Anthropic API を使って Claude AI をアプリケーションに統合するための**開発者向け実践コース**です。基本的な API 操作から高度なプロンプト技法、ツール統合、RAG、エージェントアーキテクチャまでを体系的に学べる動画コースです。
 
-## 学習内容
+コースは以下の12の主要トピックで構成されています。
 
-### API 基礎
+1. API 基礎（認証、Messages API、システムプロンプト）
+2. SDK（Python, TypeScript, Java, Go, Ruby）
+3. プロンプトエンジニアリング（XML 構造化、Few-shot、評価ワークフロー）
+4. ストリーミング
+5. ツール利用（Tool Use）
+6. RAG（Retrieval Augmented Generation）
+7. 画像分析（Vision）
+8. PDF 処理
+9. プロンプトキャッシング
+10. MCP サーバー開発
+11. エージェントシステム
+12. Extended Thinking（拡張思考）
 
-- **API 認証とリクエスト設定** — API キーの取得、リクエストヘッダーの設定、基本的な API 呼び出しの方法
-- **Messages API** — Claude との対話の基本となる Messages API の使い方。単一ターンおよびマルチターンの会話実装
-- **システムプロンプト** — モデルの動作を制御するシステムプロンプトの設定方法
+---
 
-### SDK（ソフトウェア開発キット）
+## 1. API 基礎
 
-Anthropic は5つの言語向けに公式 SDK を提供しています。
+### 概念
 
-- **Python SDK** — 最も広く使われている SDK。非同期サポートも充実
-- **TypeScript SDK** — Node.js / ブラウザ環境向け
-- **Java SDK** — エンタープライズ Java アプリケーション向け
-- **Go SDK** — Go 言語でのネイティブ統合
-- **Ruby SDK** — Ruby / Rails アプリケーション向け
+Claude API は REST ベースのインターフェースで、HTTP リクエストを通じて Claude モデルと対話します。すべてのやり取りは Messages API エンドポイントを中心に構成されており、テキスト、画像、PDF、ツール呼び出しなど多様なコンテンツタイプをサポートしています。
 
-### プロンプトエンジニアリング
+API はステートレスに設計されており、会話履歴はクライアント側で管理してリクエストごとに送信します。これにより、開発者が会話の文脈を完全にコントロールできます。
 
-- **XML 構造化** — XML タグを使ったプロンプトの構造化テクニック
-- **Few-shot learning** — 例示ベースの学習によるモデル出力の改善
-- **プロンプト評価ワークフロー** — 自動採点を用いたプロンプトの品質評価
+### 認証とリクエスト設定
 
-### ストリーミング
+API にアクセスするには、Anthropic Console から API キーを取得し、リクエストヘッダーに含めます。
 
-リアルタイムにレスポンスを受け取るストリーミング機能の実装方法を学びます。ユーザー体験の向上に不可欠なテクニックです。
+**必須ヘッダー:**
 
-### ツール利用（Tool Use）
+| ヘッダー | 値 |
+|---|---|
+| `x-api-key` | 取得した API キー |
+| `anthropic-version` | `2023-06-01` |
+| `content-type` | `application/json` |
 
-Claude に外部ツールやカスタム関数を呼び出させる機能の実装方法を学びます。
+**基本的な API リクエスト例（curl）:**
 
-- カスタムツールの定義と統合
-- ツール呼び出しの結果を会話に組み込む方法
-- 複数ツールの連携パターン
+```bash
+curl https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{
+    "model": "claude-sonnet-4-5-20250514",
+    "max_tokens": 1024,
+    "messages": [
+      {"role": "user", "content": "こんにちは、Claude"}
+    ]
+  }'
+```
 
-### RAG（Retrieval Augmented Generation）
+### Messages API
 
-外部データソースを組み合わせた検索拡張生成の実装方法を学びます。
+Messages API は Claude との対話の基盤となるエンドポイントです。
 
-- エンベディングと検索の基礎
-- ベクトルデータベースとの統合
-- コンテキスチュアルリトリーバルの実装
+**エンドポイント:** `POST /v1/messages`
 
-### 拡張機能
+**主要パラメータ:**
 
-- **画像分析（Vision）** — 画像をアップロードして Claude に分析させる方法
-- **PDF 処理** — PDF ドキュメントからのテキスト抽出と分析
-- **プロンプトキャッシング** — パフォーマンス最適化とコスト削減のための手法
+| パラメータ | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `model` | string | Yes | 使用するモデル（例: `claude-sonnet-4-5-20250514`, `claude-haiku-4-5-20250514`） |
+| `max_tokens` | number | Yes | 生成する最大トークン数 |
+| `messages` | array | Yes | `role`（`user` または `assistant`）と `content` を持つメッセージ配列 |
+| `system` | string/array | No | モデルの動作を制御するシステムプロンプト |
+| `temperature` | number | No | ランダム性の制御（0.0〜1.0、デフォルト: 1.0） |
+| `top_p` | number | No | 累積確率によるサンプリング閾値 |
+| `top_k` | number | No | 上位 K 個の候補からのみサンプリング |
+| `stop_sequences` | array | No | 生成を停止するカスタム文字列 |
+| `stream` | boolean | No | ストリーミングの有効化 |
+| `tools` | array | No | ツール定義 |
+| `tool_choice` | object | No | ツール使用の制御（`auto`/`any`/`tool`/`none`） |
+| `metadata` | object | No | ユーザー ID やリクエストメタデータ |
 
-### MCP サーバー開発
+**レスポンス形式:**
 
-Model Context Protocol（MCP）サーバーの構築方法を学びます。Claude が外部サービスやデータソースにアクセスするための標準プロトコルです。
+```json
+{
+  "id": "msg_1234567890",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {"type": "text", "text": "こんにちは！何かお手伝いできることはありますか？"}
+  ],
+  "model": "claude-sonnet-4-5-20250514",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 12,
+    "output_tokens": 18
+  }
+}
+```
 
-### エージェントシステム
+**`stop_reason` の値:**
+- `"end_turn"` — モデルが自然に応答を完了
+- `"stop_sequence"` — 指定した停止シーケンスに到達
+- `"max_tokens"` — 最大トークン数に到達
+- `"tool_use"` — ツール呼び出しを要求
 
-- **エージェントベースのシステム設計** — 自律的にタスクを実行するエージェントの構築
-- **並列化とルーティング** — 複数のタスクを効率的に処理するアーキテクチャパターン
+### マルチターン会話
+
+API はステートレスなため、マルチターン会話を実現するには、過去のやり取りをすべて `messages` 配列に含めます。`user` と `assistant` のメッセージを交互に配置する必要があります。
+
+```json
+{
+  "messages": [
+    {"role": "user", "content": "日本の首都はどこですか？"},
+    {"role": "assistant", "content": "日本の首都は東京です。"},
+    {"role": "user", "content": "人口はどのくらいですか？"}
+  ]
+}
+```
+
+### システムプロンプト
+
+システムプロンプトは、Claude の動作全体を制御する指示です。応答のトーン、役割、制約事項、出力フォーマットなどを定義できます。
+
+```json
+{
+  "system": "あなたは Python プログラミングに特化した親切なコーディングアシスタントです。回答は簡潔に、コード例を含めて答えてください。",
+  "messages": [
+    {"role": "user", "content": "リストのソート方法を教えてください"}
+  ]
+}
+```
+
+システムプロンプトは配列形式でも指定でき、キャッシュ制御と組み合わせることも可能です。
+
+### ベストプラクティス
+
+- API キーは環境変数で管理し、コードにハードコーディングしない
+- `max_tokens` はユースケースに応じて適切に設定する（不必要に大きくしない）
+- `temperature` は分析タスクでは低め（0.0〜0.3）、創造的タスクでは高め（0.7〜1.0）に設定
+- エラーハンドリングを実装し、レート制限（429）やサーバーエラー（500）に対してリトライロジックを組み込む
+- トークン使用量（`usage` フィールド）をモニタリングしてコスト管理を行う
+
+---
+
+## 2. SDK（ソフトウェア開発キット）
+
+### 概念
+
+Anthropic は複数のプログラミング言語向けに公式 SDK を提供しています。SDK を使うことで、HTTP リクエストの構築やレスポンスのパースを手動で行う必要がなくなり、型安全なインターフェースで効率的に開発できます。
+
+### Python SDK
+
+最も広く使われている SDK で、同期・非同期の両方をサポートしています。
+
+**インストール:**
+
+```bash
+pip install anthropic
+```
+
+**基本的な使い方:**
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()  # ANTHROPIC_API_KEY 環境変数を自動読み取り
+
+message = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    system="あなたは親切なアシスタントです。",
+    messages=[
+        {"role": "user", "content": "量子コンピューティングを簡単に説明してください"}
+    ]
+)
+
+print(message.content[0].text)
+```
+
+**非同期サポート:**
+
+```python
+import anthropic
+
+async_client = anthropic.AsyncAnthropic()
+
+async def main():
+    message = await async_client.messages.create(
+        model="claude-sonnet-4-5-20250514",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": "Hello"}]
+    )
+    return message
+```
+
+### TypeScript SDK
+
+Node.js およびブラウザ環境向けの SDK です。
+
+**インストール:**
+
+```bash
+npm install @anthropic-ai/sdk
+```
+
+**基本的な使い方:**
+
+```typescript
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+
+async function main() {
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-5-20250514",
+    max_tokens: 1024,
+    messages: [
+      { role: "user", content: "Hello, Claude" }
+    ]
+  });
+  console.log(message.content[0].text);
+}
+
+main();
+```
+
+### Java SDK
+
+エンタープライズ Java アプリケーション向けの SDK です。
+
+```java
+import com.anthropic.client.AnthropicClient;
+import com.anthropic.client.okhttp.AnthropicOkHttpClient;
+import com.anthropic.models.messages.*;
+
+AnthropicClient client = AnthropicOkHttpClient.fromEnv();
+
+MessageCreateParams params = MessageCreateParams.builder()
+    .model(Model.CLAUDE_SONNET_4_5)
+    .maxTokens(1024)
+    .addUserMessage("Hello, Claude")
+    .build();
+
+Message message = client.messages().create(params);
+```
+
+### Go SDK
+
+Go 言語でのネイティブ統合を提供します。
+
+```go
+import "github.com/anthropics/anthropic-sdk-go"
+
+client := anthropic.NewClient()
+
+message, err := client.Messages.New(context.Background(), anthropic.MessageNewParams{
+    Model:     anthropic.ModelClaudeSonnet4_5,
+    MaxTokens: 1024,
+    Messages: []anthropic.MessageParam{
+        anthropic.NewUserMessage(anthropic.NewTextBlock("Hello, Claude")),
+    },
+})
+```
+
+### Ruby SDK
+
+Ruby / Rails アプリケーション向けの SDK です。
+
+```ruby
+require "anthropic"
+
+client = Anthropic::Client.new
+
+message = client.messages.create(
+  model: "claude-sonnet-4-5-20250514",
+  max_tokens: 1024,
+  messages: [
+    { role: "user", content: "Hello, Claude" }
+  ]
+)
+
+puts message.content.first.text
+```
+
+### ベストプラクティス
+
+- SDK のバージョンは常に最新に保つ（新機能やバグ修正が含まれるため）
+- 環境変数 `ANTHROPIC_API_KEY` を設定しておけば、SDK が自動的に読み取る
+- 非同期クライアント（Python の `AsyncAnthropic` など）を使うことで、I/O 待ちの間に他の処理を進められる
+- SDK のエラー型（`APIError`, `RateLimitError` など）を活用して適切なエラーハンドリングを行う
+
+---
+
+## 3. プロンプトエンジニアリング
+
+### 概念
+
+プロンプトエンジニアリングは、Claude から最適な応答を引き出すためにプロンプト（入力テキスト）を設計・最適化する技法です。コースでは特に XML 構造化、Few-shot 学習、プロンプト評価ワークフローの3つを重点的に扱います。
+
+### 基本原則
+
+#### 明確で直接的な指示
+
+Claude は明確で具体的な指示に最もよく応答します。曖昧な指示ではなく、具体的に何を期待しているかを述べましょう。
+
+```
+# 不十分な例
+分析ダッシュボードを作ってください
+
+# 改善例
+分析ダッシュボードを作ってください。関連する機能とインタラクションをできるだけ多く含め、
+基本を超えた完全な機能を持つ実装にしてください。
+```
+
+#### 文脈を与えてパフォーマンスを向上させる
+
+指示の背景や理由を説明すると、Claude はより適切に応答できます。
+
+```
+# 不十分な例
+省略記号（...）は絶対に使わないでください
+
+# 改善例
+あなたの応答はテキスト読み上げエンジンで音読されます。
+省略記号は読み上げエンジンが発音方法を知らないため、絶対に使わないでください。
+```
+
+#### ロール設定
+
+システムプロンプトでロール（役割）を設定すると、Claude の振る舞いとトーンを効果的に制御できます。
+
+```python
+message = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    system="あなたは Python に特化した経験豊富なコーディングアシスタントです。",
+    messages=[{"role": "user", "content": "辞書のリストをキーでソートするには？"}]
+)
+```
+
+### XML 構造化
+
+XML タグを使ってプロンプトを構造化すると、Claude が指示、コンテキスト、例、入力データを明確に区別できるようになり、精度が大幅に向上します。
+
+```xml
+<instructions>
+以下のドキュメントを分析し、主要なポイントを3つ抽出してください。
+各ポイントには具体的な引用を含めてください。
+</instructions>
+
+<documents>
+  <document index="1">
+    <source>annual_report_2024.pdf</source>
+    <document_content>
+      {{ANNUAL_REPORT}}
+    </document_content>
+  </document>
+</documents>
+
+<output_format>
+各ポイントを以下の形式で出力:
+1. **ポイント名**: 説明
+   > 引用テキスト
+</output_format>
+```
+
+**XML タグの使い方のコツ:**
+- 一貫性のある説明的なタグ名を使用する（`<instructions>`, `<context>`, `<input>`, `<output_format>` など）
+- コンテンツに自然な階層がある場合はネストする
+- 変数入力を独自のタグで囲んでインジェクション攻撃を防ぐ
+
+### Few-shot 学習（例示ベース学習）
+
+Few-shot プロンプティングでは、期待する入出力の例を数個提示することで、Claude の出力形式、トーン、構造を誘導します。
+
+```xml
+<examples>
+  <example>
+    <input>「機械学習」という用語を小学生にもわかるように説明してください</input>
+    <output>機械学習は、コンピュータが自分で勉強して賢くなる方法のことだよ。
+    たとえば、犬と猫の写真をたくさん見せると、コンピュータは「これは犬」
+    「これは猫」と自分で見分けられるようになるんだ。</output>
+  </example>
+  <example>
+    <input>「量子コンピューティング」という用語を小学生にもわかるように説明してください</input>
+    <output>量子コンピューティングは、すごく特別な計算機のことだよ。
+    普通のコンピュータは「0」か「1」のどちらかしか使えないけど、
+    量子コンピュータは「0」と「1」を同時に使えるから、とっても速く計算できるんだ。</output>
+  </example>
+</examples>
+
+<input>「ブロックチェーン」という用語を小学生にもわかるように説明してください</input>
+```
+
+**効果的な例の作り方:**
+- 実際のユースケースに近い例を選ぶ
+- エッジケースを含む多様な例を用意する（3〜5個が目安）
+- `<example>` タグで囲んで指示と明確に区別する
+
+### プロンプト評価ワークフロー
+
+プロンプトの品質を定量的に評価するワークフローを構築することが重要です。
+
+**評価ワークフローの手順:**
+
+1. **成功基準の定義** — 正確性、フォーマット遵守、トーンなど具体的な基準を設定
+2. **テストデータセットの作成** — 多様な入力例を含むデータセットを用意（エッジケースも含む）
+3. **自動採点の実装** — Claude 自身を評価者として使うか、ルールベースの採点ロジックを構築
+4. **反復的な改善** — 評価結果をもとにプロンプトを修正し、再評価するサイクルを回す
+
+```python
+# プロンプト評価の基本パターン
+def evaluate_prompt(prompt_template, test_cases):
+    results = []
+    for test in test_cases:
+        # プロンプトにテストケースを埋め込んで実行
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250514",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt_template.format(**test["input"])}]
+        )
+        # 期待値と比較して採点
+        score = grade_response(response.content[0].text, test["expected"])
+        results.append({"input": test["input"], "score": score})
+    return results
+```
+
+### ベストプラクティス
+
+- 長文ドキュメントを扱う場合は、ドキュメントをプロンプトの先頭に配置し、質問を末尾に置く（最大30%の性能向上）
+- 「何をしないか」ではなく「何をするか」を指示する
+- ロングコンテキスト（20k+ トークン）では、まず関連部分の引用を求めてからタスクを実行させる
+- 出力フォーマットを厳密に制御したい場合は Structured Outputs（構造化出力）機能を使用する
+
+---
+
+## 4. ストリーミング
+
+### 概念
+
+ストリーミングは、Claude のレスポンスをリアルタイムに受信する機能です。通常の API 呼び出しでは、レスポンス全体が生成されるまで待つ必要がありますが、ストリーミングを有効にすると Server-Sent Events（SSE）を通じてトークンが生成されるたびに逐次受信できます。
+
+これにより、ユーザーに対するレスポンスのレイテンシが大幅に改善されます。長い応答でも最初のトークンが数百ミリ秒で到着し、チャットアプリケーションのようにリアルタイムで表示できます。
+
+### 実装手順
+
+#### Python SDK でのストリーミング
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+with client.messages.stream(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "日本の歴史について教えてください"}],
+) as stream:
+    for text in stream.text_stream:
+        print(text, end="", flush=True)
+```
+
+#### TypeScript SDK でのストリーミング
+
+```typescript
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+
+await client.messages
+  .stream({
+    model: "claude-sonnet-4-5-20250514",
+    max_tokens: 1024,
+    messages: [{ role: "user", content: "Hello" }]
+  })
+  .on("text", (text) => {
+    process.stdout.write(text);
+  });
+```
+
+#### Raw SSE（生の HTTP リクエスト）
+
+`"stream": true` を設定すると、以下の SSE イベントが送信されます。
+
+| イベントタイプ | 説明 |
+|---|---|
+| `message_start` | メッセージのメタデータ（ID、モデル、usage）を含む |
+| `content_block_start` | コンテンツブロックの開始（テキスト、ツール呼び出しなど） |
+| `content_block_delta` | コンテンツの差分データ（テキストの断片） |
+| `content_block_stop` | コンテンツブロックの終了 |
+| `message_delta` | メッセージレベルの更新（`stop_reason`, `usage`） |
+| `message_stop` | メッセージ全体の完了 |
+| `ping` | 接続維持のためのキープアライブ |
+
+**SSE イベントの流れ:**
+
+```
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_xxx","type":"message","role":"assistant",...}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"こんにちは"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"！"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":15}}
+
+event: message_stop
+data: {"type":"message_stop"}
+```
+
+### ベストプラクティス
+
+- ユーザー向けのチャットインターフェースでは常にストリーミングを使用して、体感速度を改善する
+- ストリーミング中のエラーハンドリングを適切に実装する（接続切断への対応など）
+- SDK のヘルパーメソッド（`stream()`, `.on("text", ...)` など）を使うと、低レベルの SSE パースが不要になる
+- バックエンドの処理ではストリーミングは不要な場合もある（全文を待って処理するケース）
+
+---
+
+## 5. ツール利用（Tool Use）
+
+### 概念
+
+ツール利用（Function Calling とも呼ばれる）は、Claude に外部の関数やサービスを呼び出させる機能です。開発者がツールのスキーマ（名前、説明、入力パラメータ）を定義すると、Claude はユーザーのリクエストに基づいて適切なツールを選択し、必要なパラメータを生成します。
+
+ツールの実際の実行はクライアント側で行い、その結果を Claude に返して会話を続けます。これにより、Claude の知識を超えた最新データの取得、計算の実行、外部 API との連携などが可能になります。
+
+### ツールの定義
+
+ツールは JSON Schema 形式で入力パラメータを定義します。
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+tools = [
+    {
+        "name": "get_weather",
+        "description": "指定された場所の現在の天気情報を取得する",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "都市名（例: 東京、大阪）"
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": ["celsius", "fahrenheit"],
+                    "description": "温度の単位"
+                }
+            },
+            "required": ["location"]
+        }
+    }
+]
+```
+
+### ツール呼び出しのフロー
+
+ツール利用は以下の手順で進みます。
+
+1. **ツール定義の送信** — API リクエストの `tools` パラメータにツールスキーマを含める
+2. **Claude がツール呼び出しを決定** — Claude がユーザーの意図に基づいてツール呼び出しを生成
+3. **ツール結果の返却** — クライアント側でツールを実行し、結果を `tool_result` として返す
+4. **最終応答の生成** — Claude がツール結果を踏まえて最終的な応答を生成
+
+```python
+# ステップ 1: ツール付きでリクエスト
+response = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    tools=tools,
+    messages=[{"role": "user", "content": "東京の天気を教えて"}]
+)
+
+# ステップ 2: レスポンスを確認（stop_reason が "tool_use" の場合）
+# response.content には tool_use ブロックが含まれる
+# [TextBlock(text="天気を調べます"), ToolUseBlock(id="toolu_xxx", name="get_weather", input={"location": "東京"})]
+
+# ステップ 3: ツールを実行して結果を返す
+tool_result_message = {
+    "role": "user",
+    "content": [
+        {
+            "type": "tool_result",
+            "tool_use_id": "toolu_xxx",  # ツール呼び出しの ID と一致させる
+            "content": '{"temperature": 22, "condition": "晴れ", "humidity": 45}'
+        }
+    ]
+}
+
+# ステップ 4: ツール結果を含めて再度リクエスト
+final_response = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    tools=tools,
+    messages=[
+        {"role": "user", "content": "東京の天気を教えて"},
+        {"role": "assistant", "content": response.content},
+        tool_result_message
+    ]
+)
+```
+
+### tool_choice パラメータ
+
+ツールの使用方法を制御できます。
+
+| 値 | 説明 |
+|---|---|
+| `{"type": "auto"}` | Claude が自動的にツールを使うか判断（デフォルト） |
+| `{"type": "any"}` | 必ずいずれかのツールを使用 |
+| `{"type": "tool", "name": "get_weather"}` | 指定したツールを必ず使用 |
+| `{"type": "none"}` | ツールを使用しない |
+
+### Strict Tool Use（構造化出力）
+
+`strict: true` をツール定義に追加すると、Claude のツール呼び出しパラメータがスキーマに完全に一致することが保証されます。型の不一致やフィールドの欠落が排除され、本番環境のエージェントで特に有用です。
+
+```python
+tools = [
+    {
+        "name": "get_weather",
+        "description": "天気情報を取得",
+        "strict": True,  # スキーマ準拠を保証
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "location": {"type": "string"}
+            },
+            "required": ["location"]
+        }
+    }
+]
+```
+
+### 複数ツールの連携
+
+Claude は1回のリクエストで複数のツールを並列に呼び出すことができます。また、あるツールの結果を受けて別のツールを呼び出すといった連鎖的な使い方も可能です。
+
+### ベストプラクティス
+
+- ツールの `description` は具体的かつ詳細に書く（Claude がツールの用途を正確に判断するため）
+- パラメータの `description` にも具体例を含める（例: `"都市名（例: 東京、大阪）"`）
+- エラーが発生した場合は `"is_error": true` と共にエラーメッセージを返す
+- 並列ツール呼び出しを活用してレイテンシを削減する
+- ツール定義は安定的なコンテンツとしてプロンプトキャッシングの対象にする
+
+---
+
+## 6. RAG（Retrieval Augmented Generation）
+
+### 概念
+
+RAG（検索拡張生成）は、外部のデータソースから関連情報を検索し、それをプロンプトに組み込んで Claude に回答させる手法です。Claude の学習データに含まれない最新情報や、企業固有の情報に基づいた回答を生成する際に不可欠なアーキテクチャパターンです。
+
+RAG の基本的な流れは以下の通りです。
+
+1. **ドキュメントの前処理** — テキストを適切な「チャンク」に分割
+2. **エンベディングの生成** — 各チャンクをベクトル表現に変換
+3. **インデックス化** — ベクトルデータベースに格納
+4. **検索** — ユーザーのクエリに関連するチャンクを検索
+5. **生成** — 検索結果をコンテキストとして Claude に渡し、回答を生成
+
+### テキストチャンキング
+
+ドキュメントを適切なサイズに分割する「チャンキング」は RAG の品質を左右する重要なステップです。
+
+**主要なチャンキング戦略:**
+
+| 戦略 | 説明 | 適用場面 |
+|---|---|---|
+| 固定サイズ | 一定の文字数/トークン数で分割 | シンプルなドキュメント |
+| 段落/セクション | 自然な区切りで分割 | 構造化されたドキュメント |
+| 重複チャンク | 隣接チャンクと一部を重複させる | 文脈の断絶を防ぎたい場合 |
+| セマンティック | 意味的なまとまりで分割 | 高精度が求められる場合 |
+
+### エンベディングと検索
+
+エンベディングは、テキストを高次元のベクトル空間にマッピングする技術です。意味的に近いテキスト同士はベクトル空間で近くに配置されるため、コサイン類似度などを使って関連するチャンクを効率的に検索できます。
+
+### 検索手法
+
+コースでは以下の検索手法を扱います。
+
+**BM25（キーワード検索）:**
+- 統計的なキーワードマッチングに基づく伝統的な検索手法
+- TF-IDF（用語頻度・逆文書頻度）の拡張版
+- 特定の用語や固有名詞の検索に強い
+
+**ベクトル検索（セマンティック検索）:**
+- エンベディングを使った意味的な類似性検索
+- 同義語やパラフレーズにも対応
+- 概念的な質問への対応に強い
+
+**ハイブリッド検索:**
+- BM25 とベクトル検索を組み合わせた手法
+- 両方のスコアを重み付けして統合
+- 最も高い検索精度を達成できることが多い
+
+**コンテキスチュアルリトリーバル:**
+- 各チャンクにドキュメント全体の文脈情報を付与してからエンベディングする手法
+- チャンク単体では失われがちな文脈を補完し、検索精度を向上させる
+- Anthropic が提唱する高度な RAG 手法
+
+### 実装の概要
+
+```python
+# RAG パイプラインの概念的な実装
+import anthropic
+
+client = anthropic.Anthropic()
+
+def rag_query(user_question, knowledge_base):
+    # 1. 関連チャンクを検索
+    relevant_chunks = knowledge_base.search(user_question, top_k=5)
+
+    # 2. コンテキストを構築
+    context = "\n\n".join([chunk.text for chunk in relevant_chunks])
+
+    # 3. Claude に問い合わせ
+    response = client.messages.create(
+        model="claude-sonnet-4-5-20250514",
+        max_tokens=2048,
+        system="あなたは提供されたコンテキストに基づいて正確に回答するアシスタントです。コンテキストに情報がない場合は、その旨を伝えてください。",
+        messages=[
+            {
+                "role": "user",
+                "content": f"""以下のコンテキストに基づいて質問に答えてください。
+
+<context>
+{context}
+</context>
+
+<question>
+{user_question}
+</question>"""
+            }
+        ]
+    )
+    return response.content[0].text
+```
+
+### ベストプラクティス
+
+- チャンクサイズは 200〜800 トークン程度が一般的だが、ユースケースに応じて調整する
+- 検索結果の数（top_k）は多すぎると雑音が混ざり、少なすぎると情報が不足する（5〜10 が目安）
+- コンテキストに含める情報の出典を明示させると、ハルシネーション（幻覚）を抑制できる
+- ハイブリッド検索を使うことで、キーワード検索とセマンティック検索の弱点を相互に補完できる
+- 大規模なコンテキストにはプロンプトキャッシングを適用してコストを削減する
+
+---
+
+## 7. 画像分析（Vision）
+
+### 概念
+
+Claude は画像を理解・分析する Vision 機能を備えており、テキストと画像を組み合わせたマルチモーダルな対話が可能です。写真の説明、グラフの解釈、UI のレビュー、ドキュメントからの情報抽出など、幅広いタスクに対応できます。
+
+### サポートされるフォーマットと制限
+
+| 項目 | 仕様 |
+|---|---|
+| 対応フォーマット | JPEG, PNG, GIF, WebP |
+| 最大ファイルサイズ | API: 5MB/画像、claude.ai: 10MB/画像 |
+| 最大画像数/リクエスト | API: 最大 600 枚（200k コンテキストモデルは 100 枚） |
+| 最大解像度 | 8000x8000 px（20枚超の場合は 2000x2000 px） |
+| 推奨解像度 | 長辺 1568 px 以下（約1600トークン） |
+
+### 画像の送信方法
+
+画像は3つの方法で送信できます。
+
+#### 方法 1: Base64 エンコード
+
+```python
+import anthropic
+import base64
+import httpx
+
+client = anthropic.Anthropic()
+
+# 画像をダウンロードして Base64 エンコード
+image_url = "https://example.com/image.jpg"
+image_data = base64.standard_b64encode(httpx.get(image_url).content).decode("utf-8")
+
+message = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": image_data
+                    }
+                },
+                {"type": "text", "text": "この画像を説明してください。"}
+            ]
+        }
+    ]
+)
+```
+
+#### 方法 2: URL 指定
+
+```python
+message = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "url",
+                        "url": "https://example.com/image.jpg"
+                    }
+                },
+                {"type": "text", "text": "この画像を説明してください。"}
+            ]
+        }
+    ]
+)
+```
+
+#### 方法 3: Files API
+
+繰り返し使う画像は Files API でアップロードし、`file_id` で参照できます。マルチターン会話では毎回 Base64 データを再送する必要がなくなり、リクエストサイズとレイテンシが大幅に改善されます。
+
+### 複数画像の分析
+
+複数の画像を1つのリクエストに含めて比較・分析させることができます。
+
+```python
+message = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "画像 1:"},
+                {"type": "image", "source": {"type": "url", "url": "https://example.com/image1.jpg"}},
+                {"type": "text", "text": "画像 2:"},
+                {"type": "image", "source": {"type": "url", "url": "https://example.com/image2.jpg"}},
+                {"type": "text", "text": "これら2つの画像の違いを説明してください。"}
+            ]
+        }
+    ]
+)
+```
+
+### 制限事項
+
+- **人物の特定:** Claude は画像に写っている人物の名前を特定できません（利用規約により禁止）
+- **空間推論:** 正確な位置関係やレイアウトの把握に限界がある
+- **計数:** 多数の小さいオブジェクトの正確な数え上げは困難
+- **低品質画像:** ぼやけた画像や回転した画像では精度が低下する
+
+### ベストプラクティス
+
+- 画像はテキストの質問よりも前（先）に配置する
+- 1.15 メガピクセル以下にリサイズすると、画質を保ちつつレイテンシを改善できる
+- 複数画像を扱う場合は「画像 1:」「画像 2:」のようにラベルを付ける
+- 重要なテキストを含む画像は、テキストが読みやすいように十分な解像度を確保する
+- トークンコストの概算: `トークン数 ≈ (幅 px × 高さ px) / 750`
+
+---
+
+## 8. PDF 処理
+
+### 概念
+
+Claude は PDF ドキュメントを直接処理でき、テキスト、画像、グラフ、表などの視覚的要素を含む包括的な分析が可能です。PDF の各ページはテキスト抽出と画像変換の両方が行われ、Claude はテキストと視覚情報の両方を組み合わせてドキュメントを理解します。
+
+### 制限事項と要件
+
+| 項目 | 制限 |
+|---|---|
+| 最大リクエストサイズ | 32 MB |
+| 最大ページ数/リクエスト | 600 ページ（200k コンテキストモデルは 100 ページ） |
+| フォーマット | 標準 PDF（パスワード保護・暗号化なし） |
+
+### PDF の送信方法
+
+#### URL 指定
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+message = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "url",
+                        "url": "https://example.com/document.pdf"
+                    }
+                },
+                {"type": "text", "text": "このドキュメントの要点をまとめてください。"}
+            ]
+        }
+    ]
+)
+```
+
+#### Base64 エンコード
+
+```python
+import base64
+
+# ローカルファイルを読み込んでエンコード
+with open("document.pdf", "rb") as f:
+    pdf_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+message = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": pdf_data
+                    }
+                },
+                {"type": "text", "text": "このドキュメントの要点をまとめてください。"}
+            ]
+        }
+    ]
+)
+```
+
+#### Files API
+
+繰り返し使用する PDF は Files API でアップロードし、`file_id` で参照します。
+
+### コスト見積もり
+
+PDF のトークンコストは以下の2つから成ります。
+
+- **テキストトークン:** ページあたり約 1,500〜3,000 トークン（コンテンツの密度による）
+- **画像トークン:** 各ページが画像としても処理されるため、Vision と同じコスト計算が適用
+
+### ベストプラクティス
+
+- PDF はテキストの前に配置する
+- 標準的なフォントを使用し、テキストが明瞭なドキュメントが最も精度が高い
+- ページを正しい向き（上下正位置）に回転させておく
+- プロンプトでページ番号を参照する場合は PDF ビューアの論理ページ番号を使用する
+- 大きな PDF は分割して処理することで、コンテキストウィンドウの溢れを防ぐ
+- 繰り返し分析する PDF にはプロンプトキャッシングを適用する
+- 大量処理にはバッチ API（Message Batches API）を活用する
+
+---
+
+## 9. プロンプトキャッシング
+
+### 概念
+
+プロンプトキャッシングは、API リクエストのプロンプトプレフィックスを保存・再利用することで、処理時間とコストを大幅に削減する最適化機能です。大規模なシステムプロンプト、長いドキュメント、多数のツール定義など、リクエスト間で変化しない部分をキャッシュすることで、繰り返し処理のコストを最大 90% 削減できます。
+
+### 仕組み
+
+1. **キャッシュ確認:** システムがキャッシュブレークポイントまでのプロンプトプレフィックスがキャッシュに存在するか確認
+2. **キャッシュヒット:** 存在する場合、キャッシュ版を使用（コスト: 基本入力価格の 10%）
+3. **キャッシュミス:** 存在しない場合、フルプロンプトを処理してキャッシュに保存（コスト: 基本入力価格の 125%）
+4. **自動更新:** キャッシュ有効期間内に再利用されると、追加コストなしでリフレッシュ
+
+### 実装方法
+
+#### 方法 1: 自動キャッシング（推奨）
+
+リクエストのトップレベルに `cache_control` を追加するだけで、最後のキャッシュ可能なブロックに自動的にブレークポイントが設定されます。
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    cache_control={"type": "ephemeral"},  # 自動キャッシング有効化
+    system="あなたは会話の内容を記憶する親切なアシスタントです。",
+    messages=[
+        {"role": "user", "content": "私の名前はアレックスです。機械学習の仕事をしています。"},
+        {"role": "assistant", "content": "はじめまして、アレックスさん！機械学習のお仕事について何かお手伝いできますか？"},
+        {"role": "user", "content": "私の仕事は何だと言いましたか？"}
+    ]
+)
+```
+
+#### 方法 2: 明示的キャッシュブレークポイント
+
+個々のコンテンツブロックに `cache_control` を配置して、きめ細かい制御を行います。
+
+```python
+response = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=1024,
+    system=[
+        {
+            "type": "text",
+            "text": "あなたは法律文書を分析する AI アシスタントです。"
+        },
+        {
+            "type": "text",
+            "text": "以下は複雑な法律契約書の全文です: [50ページの法律文書]",
+            "cache_control": {"type": "ephemeral"}  # ここにブレークポイント設定
+        }
+    ],
+    messages=[
+        {"role": "user", "content": "この契約の主要な条件を教えてください。"}
+    ]
+)
+```
+
+### キャッシュ可能なコンテンツ
+
+| キャッシュ可能 | キャッシュ不可 |
+|---|---|
+| ツール定義（`tools` 配列） | thinking ブロック（単独では不可） |
+| システムメッセージ | サブコンテンツブロック（citations など） |
+| テキストメッセージ（user/assistant） | 空のテキストブロック |
+| 画像・ドキュメント（user ターン） | |
+| ツール呼び出し・ツール結果 | |
+
+### キャッシュ階層
+
+キャッシュプレフィックスは `tools` → `system` → `messages` の順に作成されます。いずれかのレベルで変更があると、そのレベル以降のキャッシュは無効になります。
+
+### キャッシュ有効期間（TTL）
+
+| TTL | コスト倍率（書き込み） | 用途 |
+|---|---|---|
+| 5分（デフォルト） | 1.25x | 高頻度のリクエスト |
+| 1時間 | 2.0x | 低頻度だが重要なリクエスト |
+
+```python
+# 1時間キャッシュの設定
+"cache_control": {"type": "ephemeral", "ttl": "1h"}
+```
+
+### 最小キャッシュ可能長
+
+| モデル | 最小トークン数 |
+|---|---|
+| Claude Opus 4, Haiku 4.5 | 4096 トークン |
+| Claude Sonnet 4.5 | 2048 トークン |
+| Claude Sonnet 4, 3.7, Haiku 3.5 | 1024 トークン |
+
+### トークン使用量の追跡
+
+レスポンスの `usage` フィールドでキャッシュのパフォーマンスを監視できます。
+
+```json
+{
+  "cache_creation_input_tokens": 1000,
+  "cache_read_input_tokens": 5000,
+  "input_tokens": 50
+}
+```
+
+- `cache_creation_input_tokens` — キャッシュに書き込まれたトークン数
+- `cache_read_input_tokens` — キャッシュから読み取られたトークン数
+- `input_tokens` — 最後のキャッシュブレークポイント以降のトークン数
+
+### ベストプラクティス
+
+- マルチターン会話には自動キャッシングを使用する
+- 安定的なコンテンツ（システム指示、コンテキスト、ツール定義）をリクエストの先頭に配置する
+- タイムスタンプなど毎回変化するデータにはキャッシュブレークポイントを設定しない
+- 変更頻度の異なるセクションには複数のブレークポイント（最大4つ）を使用する
+- `usage` メトリクスでキャッシュヒット率を監視し、戦略を調整する
+
+---
+
+## 10. MCP サーバー開発
+
+### 概念
+
+MCP（Model Context Protocol）は、AI アプリケーションを外部システムに接続するためのオープンソース標準プロトコルです。USB-C ポートのように、AI アプリケーションと外部データソース・ツール・ワークフローの間の標準化された接続を提供します。
+
+MCP を使うことで、Claude はローカルファイル、データベース、検索エンジン、API サービスなど様々な外部リソースにアクセスできるようになります。
+
+### アーキテクチャ
+
+MCP は以下の3つのコンポーネントで構成されます。
+
+**ホスト（Host）:**
+MCP サーバーに接続する AI アプリケーション。Claude Desktop、Claude Code、VS Code などが該当します。
+
+**クライアント（Client）:**
+ホスト内に存在し、MCP サーバーとの通信を管理するコンポーネント。各サーバーとの1対1の接続を維持します。
+
+**サーバー（Server）:**
+外部のデータソースやツールへのアクセスを提供するプログラム。標準化されたインターフェースを通じて機能を公開します。
+
+### コアプリミティブ
+
+MCP サーバーは以下の3つのプリミティブを公開できます。
+
+| プリミティブ | 説明 | 例 |
+|---|---|---|
+| **Tools** | モデルが呼び出せる関数 | API 呼び出し、データベースクエリ、計算 |
+| **Resources** | モデルが読み取れるデータ | ファイル内容、データベースレコード、API レスポンス |
+| **Prompts** | 事前定義されたプロンプトテンプレート | 特定タスク向けの構造化プロンプト |
+
+### MCP サーバーの構築（Python 例）
+
+```python
+from mcp.server import Server
+from mcp.types import Tool, TextContent
+
+# サーバーインスタンスの作成
+server = Server("my-weather-server")
+
+# ツールの定義
+@server.tool()
+async def get_weather(location: str) -> list[TextContent]:
+    """指定された場所の天気情報を取得する"""
+    # 実際の天気 API を呼び出す処理
+    weather_data = await fetch_weather(location)
+    return [TextContent(type="text", text=f"{location}の天気: {weather_data}")]
+
+# サーバーの起動
+if __name__ == "__main__":
+    server.run()
+```
+
+### MCP サーバーの構築（TypeScript 例）
+
+```typescript
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const server = new Server({
+  name: "my-weather-server",
+  version: "1.0.0"
+}, {
+  capabilities: { tools: {} }
+});
+
+// ツールの一覧を返す
+server.setRequestHandler("tools/list", async () => ({
+  tools: [
+    {
+      name: "get_weather",
+      description: "指定された場所の天気情報を取得する",
+      inputSchema: {
+        type: "object",
+        properties: {
+          location: { type: "string", description: "都市名" }
+        },
+        required: ["location"]
+      }
+    }
+  ]
+}));
+
+// ツール呼び出しを処理
+server.setRequestHandler("tools/call", async (request) => {
+  if (request.params.name === "get_weather") {
+    const location = request.params.arguments.location;
+    return {
+      content: [{ type: "text", text: `${location}の天気: 晴れ、22°C` }]
+    };
+  }
+});
+
+// stdio トランスポートで起動
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+### トランスポートプロトコル
+
+| プロトコル | 説明 | 用途 |
+|---|---|---|
+| **stdio** | 標準入出力を使用 | ローカルプロセス間通信 |
+| **SSE (HTTP)** | Server-Sent Events over HTTP | リモートサーバーとの通信 |
+
+### MCP が実現するユースケース
+
+- Claude から Google カレンダーや Notion にアクセスするパーソナル AI アシスタント
+- データベースに接続してデータ分析を行うエンタープライズチャットボット
+- Figma デザインから Web アプリを生成する Claude Code
+- ファイルシステムやブラウザと連携するエージェント
+
+### ベストプラクティス
+
+- ツールの説明は具体的かつ詳細に書く（モデルが正しく選択できるように）
+- 入力パラメータのバリデーションをサーバー側で行う
+- エラーハンドリングを適切に実装し、わかりやすいエラーメッセージを返す
+- 機密データへのアクセスには認証・認可メカニズムを実装する
+- サーバーのログを充実させて、デバッグとモニタリングを容易にする
+
+---
+
+## 11. エージェントシステム
+
+### 概念
+
+エージェントシステムは、Claude が自律的にタスクを実行するアーキテクチャパターンです。単純な質疑応答を超えて、ツール呼び出し、情報収集、計画立案、実行、結果の検証などを連鎖的に行い、複雑なタスクを遂行します。
+
+エージェントの核となるのは「エージェンティックループ」です。Claude がツールを呼び出し、結果を分析し、次のアクションを決定し、タスクが完了するまでこのサイクルを繰り返します。
+
+### 主要なアーキテクチャパターン
+
+#### チェーニング（Chaining）
+
+タスクを一連のステップに分解し、各ステップの出力を次のステップの入力とするパターンです。
+
+```
+[入力] → [ステップ1: 要約] → [ステップ2: 翻訳] → [ステップ3: フォーマット] → [出力]
+```
+
+各ステップが独立した API 呼び出しで、中間結果を検査・ログ記録できる利点があります。最も一般的なチェーニングパターンは「自己修正」です。ドラフトを生成 → 基準に照らしてレビュー → レビュー結果に基づいて改善、というサイクルを回します。
+
+#### ルーティング（Routing）
+
+入力の種類や内容に応じて、異なる処理パスに振り分けるパターンです。
+
+```
+[入力] → [分類] → ┬→ [技術的質問] → [技術回答生成]
+                   ├→ [一般質問]   → [一般回答生成]
+                   └→ [苦情]       → [エスカレーション]
+```
+
+#### 並列化（Parallelization）
+
+独立したサブタスクを同時に実行し、結果を統合するパターンです。
+
+```
+           ┌→ [サブタスク A] →┐
+[入力] → [分割] → [サブタスク B] → [統合] → [出力]
+           └→ [サブタスク C] →┘
+```
+
+Claude の最新モデルは並列ツール実行に優れており、複数の検索やファイル読み込みを同時に実行できます。
+
+#### オーケストレーター・ワーカー（Orchestrator-Workers）
+
+メインの Claude（オーケストレーター）が全体を管理し、サブエージェント（ワーカー）に個別のタスクを委任するパターンです。
+
+```
+[オーケストレーター]
+    ├→ [ワーカー1: リサーチ]
+    ├→ [ワーカー2: コード実装]
+    └→ [ワーカー3: テスト]
+```
+
+### エージェンティックループの実装
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+def agent_loop(user_task, tools, max_iterations=10):
+    messages = [{"role": "user", "content": user_task}]
+
+    for i in range(max_iterations):
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250514",
+            max_tokens=4096,
+            tools=tools,
+            messages=messages
+        )
+
+        # レスポンスを会話履歴に追加
+        messages.append({"role": "assistant", "content": response.content})
+
+        # タスク完了チェック
+        if response.stop_reason == "end_turn":
+            return response  # タスク完了
+
+        # ツール呼び出しの処理
+        if response.stop_reason == "tool_use":
+            tool_results = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    # ツールを実行
+                    result = execute_tool(block.name, block.input)
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result
+                    })
+            messages.append({"role": "user", "content": tool_results})
+
+    return "最大イテレーション数に到達"
+```
+
+### ロングホライズン推論と状態管理
+
+Claude の最新モデルは、長時間にわたる自律的なタスク実行に優れています。
+
+**状態管理のベストプラクティス:**
+- 構造化データ（テスト結果、タスク状態）には JSON 形式を使用する
+- 進捗メモには非構造化テキストを使用する
+- Git を状態追跡に活用する（ログとチェックポイント）
+- インクリメンタルな進捗を明示的に要求する
+
+**コンテキストウィンドウの管理:**
+- 大規模タスクでは複数のコンテキストウィンドウにまたがって作業する
+- 最初のコンテキストウィンドウでフレームワーク（テスト、セットアップスクリプト）を構築する
+- コンテキストが一杯になる前に進捗を保存する
+- 作業の検証ツール（テストスイート、リンター）を用意する
+
+### 自律性と安全性のバランス
+
+エージェントが取り消し困難なアクション（ファイル削除、force-push、外部サービスへの投稿など）を実行する前に確認を求めるよう、システムプロンプトで指示します。
+
+```
+アクションの可逆性と影響を考慮してください。
+ローカルで可逆的なアクション（ファイル編集、テスト実行）は自由に行ってよいですが、
+取り消しが困難なアクションや共有システムに影響するアクションについては、
+実行前にユーザーに確認してください。
+
+確認が必要なアクションの例:
+- 破壊的操作: ファイル削除、ブランチ削除、テーブルのドロップ
+- 取り消し困難な操作: git push --force, git reset --hard
+- 他者に可視な操作: コードのプッシュ、PR/Issue へのコメント、メッセージ送信
+```
+
+### ベストプラクティス
+
+- エージェントには必ず最大イテレーション数の制限を設ける
+- 並列ツール呼び出しを積極的に活用してレイテンシを削減する
+- サブエージェントの過剰な使用に注意する（単純なタスクは直接実行する）
+- 「何をしないか」ではなく「何をするか」を指示する方が効果的
+- ツールの過少トリガーを防ぐためにアグレッシブだった指示は、最新モデルでは緩和する
+- 検証手段（テスト、リンター）を用意して、エージェントが自己チェックできるようにする
+
+---
+
+## 12. Extended Thinking（拡張思考）
+
+### 概念
+
+Extended Thinking は、Claude が応答を出力する前に内部で段階的に推論を行う機能です。複雑な数学、コード分析、多段階の計画立案など、深い推論が必要なタスクで精度が大幅に向上します。
+
+### Adaptive Thinking（適応型思考）
+
+最新モデル（Claude Opus 4.6, Sonnet 4.6）では、Claude がクエリの複雑さに応じて動的に思考の深さを決定する **Adaptive Thinking** が導入されています。
+
+```python
+response = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=64000,
+    thinking={"type": "adaptive"},
+    output_config={"effort": "high"},  # high, medium, low
+    messages=[{"role": "user", "content": "この複雑なアルゴリズムを最適化してください..."}]
+)
+```
+
+**effort パラメータ:**
+
+| 値 | 説明 | 用途 |
+|---|---|---|
+| `max` | 最大限の思考 | 最も困難な問題 |
+| `high` | 深い思考 | 複雑なコーディング、分析 |
+| `medium` | バランス型 | 一般的なアプリケーション |
+| `low` | 軽量な思考 | 高速応答が必要な場合 |
+
+### Extended Thinking（手動モード）
+
+思考トークン数の上限を明示的に指定する従来のモードも利用可能です。
+
+```python
+response = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=64000,
+    thinking={"type": "enabled", "budget_tokens": 32000},
+    messages=[{"role": "user", "content": "この証明を検証してください..."}]
+)
+```
+
+### Interleaved Thinking（インターリーブ思考）
+
+ツール呼び出しの間に思考を挟む機能で、エージェンティックなワークフローで特に有用です。ツール結果を受け取った後に Claude が反省的に推論し、次の最適なアクションを決定できます。
+
+### ベストプラクティス
+
+- 具体的なステップを手書きで指定するよりも、「徹底的に考えてください」のような一般的な指示の方がよい結果を得られることが多い
+- Few-shot 例の中に `<thinking>` タグを使って推論パターンを示すと、Claude がそのスタイルを一般化する
+- 「最終回答の前に、[テスト基準]に照らして検証してください」のような自己チェック指示を追加する
+- Extended Thinking は追加のレイテンシが発生するため、すべてのリクエストで有効にする必要はない
+- Adaptive Thinking は Agentic なワークフロー（マルチステップツール使用、複雑なコーディング）に特に適している
+
+---
+
+## 利用可能なモデル
+
+| モデル | 特徴 | 推奨用途 |
+|---|---|---|
+| **Claude Opus 4** | 最も高い知能 | 最難関タスク、長時間の自律作業 |
+| **Claude Sonnet 4.5** | 速度と知能のバランス | 一般的な開発、エージェント |
+| **Claude Haiku 4.5** | 最速 | 高速処理、大量リクエスト |
+
+---
 
 ## 前提条件
 
 - Python プログラミングの基礎知識
 - JSON データ処理の基本的な理解
+- コマンドライン操作の基本
 
 ## 対象者
 
