@@ -139,28 +139,15 @@ export default async function RootLayout({
           docsRepositoryBase="https://github.com/pullhead/ClaudeGuide"
           footer={
             <Footer>
-              <div
+              <span
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.5rem 0',
+                  fontSize: '0.7rem',
+                  color: 'var(--cg-text-muted)',
+                  opacity: 0.7,
                 }}
               >
-                <span style={{ fontSize: '0.8rem', color: 'var(--cg-text-muted)' }}>
-                  MIT {new Date().getFullYear()} &copy; Claude Guide
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    color: 'var(--cg-text-muted)',
-                    opacity: 0.7,
-                  }}
-                >
-                  Powered by Nextra &middot; Built with Claude
-                </span>
-              </div>
+                Powered by Nextra
+              </span>
             </Footer>
           }
           darkMode={true}
