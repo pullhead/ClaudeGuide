@@ -4,8 +4,10 @@
   "models": "モデル概要",
   "messages-api": "Messages API",
   "vision": "Vision（画像入力）",
+  "pdf-support": "PDF処理",
   "extended-thinking": "Extended Thinking",
   "tool-use": "Tool Use",
+  "code-execution": "Code Execution",
   "structured-outputs": "構造化出力",
   "prompt-engineering": "プロンプトエンジニアリング",
   "prompt-caching": "Prompt Caching",
@@ -15,5 +17,9 @@
   "web-search": "Web Search",
   "computer-use": "Computer Use",
   "agent-skills": "Agent Skills",
-  "mcp": "MCP"
+  "mcp": "MCP",
+  "agent-sdk": "Agent SDK",
+  "files-api": "Files API",
+  "token-counting": "トークン計算",
+  "glossary": "用語集"
 }

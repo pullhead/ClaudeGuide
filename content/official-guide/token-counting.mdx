@@ -1,0 +1,196 @@
+# トークン計算
+
+[Token counting](https://docs.anthropic.com/en/docs/build-with-claude/token-counting)
+
+## 概要
+
+トークン計算（Token Counting）は、メッセージをClaudeに送信する前にトークン数を確認できる機能。これにより以下が可能になる。
+
+- レート制限とコストの事前管理
+- モデルルーティングの最適化
+- プロンプトの長さ調整
+
+トークン計算APIは**無料**で利用でき、Messages APIとは独立したレート制限を持つ。
+
+## 基本的な使い方
+
+### シンプルなメッセージのトークン数
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.count_tokens(
+    model="claude-sonnet-4-6",
+    system="You are a scientist",
+    messages=[{"role": "user", "content": "Hello, Claude"}],
+)
+
+print(response.json())
+# {"input_tokens": 14}
+```
+
+### ツール付きメッセージのトークン数
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.count_tokens(
+    model="claude-sonnet-4-6",
+    tools=[
+        {
+            "name": "get_weather",
+            "description": "Get the current weather in a given location",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    }
+                },
+                "required": ["location"],
+            },
+        }
+    ],
+    messages=[{"role": "user", "content": "What's the weather like in San Francisco?"}],
+)
+
+print(response.json())
+# {"input_tokens": 403}
+```
+
+### 画像付きメッセージのトークン数
+
+```python
+import anthropic
+import base64
+import httpx
+
+image_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
+image_data = base64.standard_b64encode(httpx.get(image_url).content).decode("utf-8")
+
+client = anthropic.Anthropic()
+
+response = client.messages.count_tokens(
+    model="claude-sonnet-4-6",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": image_data,
+                    },
+                },
+                {"type": "text", "text": "Describe this image"},
+            ],
+        }
+    ],
+)
+print(response.json())
+# {"input_tokens": 1551}
+```
+
+### Extended Thinking付きメッセージのトークン数
+
+前のアシスタントターンのthinkingブロックは無視され、入力トークンにはカウントされない。現在のアシスタントターンのthinkingのみがカウントされる。
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.count_tokens(
+    model="claude-sonnet-4-6",
+    thinking={"type": "enabled", "budget_tokens": 16000},
+    messages=[
+        {
+            "role": "user",
+            "content": "Are there an infinite number of prime numbers such that n mod 4 == 3?",
+        },
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "thinking",
+                    "thinking": "This is a nice number theory question...",
+                    "signature": "EuYBCkQYAiJA...",
+                },
+                {
+                    "type": "text",
+                    "text": "Yes, there are infinitely many...",
+                },
+            ],
+        },
+        {"role": "user", "content": "Can you write a formal proof?"},
+    ],
+)
+
+print(response.json())
+# {"input_tokens": 88}
+```
+
+### PDF付きメッセージのトークン数
+
+```python
+import base64
+import anthropic
+
+client = anthropic.Anthropic()
+
+with open("document.pdf", "rb") as pdf_file:
+    pdf_base64 = base64.standard_b64encode(pdf_file.read()).decode("utf-8")
+
+response = client.messages.count_tokens(
+    model="claude-sonnet-4-6",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": pdf_base64,
+                    },
+                },
+                {"type": "text", "text": "Please summarize this document."},
+            ],
+        }
+    ],
+)
+
+print(response.json())
+```
+
+## 対応モデル
+
+全てのアクティブモデルがトークン計算をサポートしている。
+
+## 注意事項
+
+- トークン数は**推定値**であり、実際のメッセージ作成時と若干異なる場合がある
+- Anthropicがシステム最適化のために追加するトークンが含まれる場合があるが、追加トークンの課金は発生しない
+- Prompt Cachingのロジックは使用されない（`cache_control`ブロックを含めても実際のキャッシュは発生しない）
+- サーバーツールのトークン数は最初のサンプリングコールにのみ適用される
+
+## 料金とレート制限
+
+トークン計算は**無料**だが、リクエスト/分（RPM）のレート制限がある。
+
+| 利用ティア | RPM |
+|-----------|-----|
+| 1 | 100 |
+| 2 | 2,000 |
+| 3 | 4,000 |
+| 4 | 8,000 |
+
+トークン計算とメッセージ作成はそれぞれ独立したレート制限を持ち、一方の使用が他方の制限に影響することはない。

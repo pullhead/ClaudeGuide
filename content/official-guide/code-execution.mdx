@@ -1,0 +1,201 @@
+# Code Execution Tool
+
+[Code execution](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/code-execution)
+
+## 概要
+
+Code Execution Toolは、Claudeがセキュアなサンドボックス環境でBashコマンドを実行し、データ分析、可視化、複雑な計算、ファイル処理などを行える機能。
+
+Web SearchやWeb Fetchツールと併用する場合、Code Executionは**無料**（標準の入出力トークンコストのみ）。
+
+## 対応モデル
+
+| モデル | ツールバージョン |
+|--------|-----------------|
+| Claude Opus 4.6 | `code_execution_20250825` |
+| Claude Sonnet 4.6 | `code_execution_20250825` |
+| Claude Sonnet 4.5 | `code_execution_20250825` |
+| Claude Opus 4.5 | `code_execution_20250825` |
+| Claude Opus 4.1 | `code_execution_20250825` |
+| Claude Opus 4 | `code_execution_20250825` |
+| Claude Sonnet 4 | `code_execution_20250825` |
+| Claude Haiku 4.5 | `code_execution_20250825` |
+
+Claude API（Anthropic）およびMicrosoft Azure AI Foundryで利用可能。Amazon BedrockとGoogle Vertex AIでは現在非対応。
+
+## クイックスタート
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=4096,
+    messages=[
+        {
+            "role": "user",
+            "content": "Calculate the mean and standard deviation of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]",
+        }
+    ],
+    tools=[{"type": "code_execution_20250825", "name": "code_execution"}],
+)
+
+print(response)
+```
+
+curlでの例:
+
+```bash
+curl https://api.anthropic.com/v1/messages \
+    --header "x-api-key: $ANTHROPIC_API_KEY" \
+    --header "anthropic-version: 2023-06-01" \
+    --header "content-type: application/json" \
+    --data '{
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 4096,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Calculate the mean and standard deviation of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
+            }
+        ],
+        "tools": [{
+            "type": "code_execution_20250825",
+            "name": "code_execution"
+        }]
+    }'
+```
+
+## レスポンス構造
+
+Code Executionのレスポンスには以下のコンテンツブロックが含まれる。
+
+- **`text`**: Claudeのテキスト応答
+- **`server_tool_use`**: Claudeが実行するコードを含むツール使用ブロック
+- **`code_execution_result`**: 実行結果（stdout、stderr、return code）
+
+```json
+{
+  "content": [
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_xxx",
+      "name": "code_execution",
+      "input": {
+        "code": "import numpy as np\ndata = [1, 2, 3, 4, 5]\nprint(f'Mean: {np.mean(data)}')"
+      }
+    },
+    {
+      "type": "code_execution_result",
+      "tool_use_id": "srvtoolu_xxx",
+      "content": {
+        "type": "code_execution_output",
+        "stdout": "Mean: 3.0\n",
+        "stderr": "",
+        "return_code": 0
+      }
+    },
+    {
+      "type": "text",
+      "text": "平均値は3.0です。"
+    }
+  ]
+}
+```
+
+## ユースケース
+
+### データ分析と可視化
+
+Files APIと組み合わせてデータセットを分析し、チャートを作成できる。
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# データセットをアップロード
+with open("sales_data.csv", "rb") as f:
+    uploaded = client.beta.files.upload(
+        file=("sales_data.csv", f, "text/csv")
+    )
+
+# Claudeに分析させる
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=4096,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "このCSVデータを分析して、月次トレンドのグラフを作成してください。",
+                },
+                {
+                    "type": "container_upload",
+                    "source": {"type": "file", "file_id": uploaded.id},
+                },
+            ],
+        }
+    ],
+    tools=[{"type": "code_execution_20250825", "name": "code_execution"}],
+    betas=["files-api-2025-04-14"],
+)
+```
+
+### 他のツールとの組み合わせ
+
+Code Executionは他のサーバーツール（web_search、web_fetch）と組み合わせ可能。
+
+```python
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=4096,
+    messages=[
+        {
+            "role": "user",
+            "content": "日経平均の過去1年のデータを取得して、移動平均のグラフを作成してください。",
+        }
+    ],
+    tools=[
+        {"type": "code_execution_20250825", "name": "code_execution"},
+        {"type": "web_search_20250305", "name": "web_search"},
+    ],
+)
+```
+
+## サンドボックス環境
+
+- **OS**: Linux（x86_64）
+- **シェル**: Bash
+- **実行時間制限**: デフォルト30秒（最大10分に設定可能）
+- **メモリ**: 1 GiB RAM
+- **ディスク**: 2 GiB
+- **ネットワーク**: なし（サンドボックス内は完全に分離）
+
+### プリインストール言語・ツール
+
+Python 3（NumPy、Pandas、Matplotlib、scikit-learn等の主要ライブラリ含む）、Node.js、Ruby、PHP、Go、Rust、Java、C/C++コンパイラ、各種CLIツール（jq、curl、git等）が利用可能。
+
+## 制限事項
+
+- ネットワークアクセスなし（外部APIやパッケージインストール不可）
+- 実行時間制限あり
+- ステートレス（各実行は独立したサンドボックスで実行、ただし同一ターン内では状態が保持される）
+- 生成されたファイルは`code_execution_result`の`content`フィールドでインラインで返される
+
+## 料金
+
+| 項目 | 料金 |
+|------|------|
+| Code Execution呼び出し | $0.05/呼び出し |
+| Web Search/Web Fetch併用時 | 無料（トークンコストのみ） |
+
+Extended Thinking利用時は$0.01/呼び出しの追加料金。
+
+## ストリーミング
+
+`stream: true`でリアルタイムに結果を受信可能。`code_execution_result`イベントで実行結果がストリーミングされる。

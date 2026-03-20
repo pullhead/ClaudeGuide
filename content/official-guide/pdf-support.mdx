@@ -1,0 +1,218 @@
+# PDF処理
+
+[PDF support](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support)
+
+## 概要
+
+ClaudeはPDFファイルを直接処理できる。テキスト抽出、チャート・表の分析、画像を含むビジュアルコンテンツの理解が可能。主なユースケースは以下の通り。
+
+- 財務レポートの分析（チャート・表の理解）
+- 法的文書からの重要情報抽出
+- ドキュメントの翻訳支援
+- 構造化データへの変換
+
+## 制限事項
+
+| 項目 | 制限値 |
+|------|--------|
+| 最大リクエストサイズ | 32 MB |
+| 最大ページ数 | 600ページ（200kトークンモデルは100ページ） |
+| フォーマット | 標準PDF（パスワード・暗号化なし） |
+
+密度の高いPDF（小さいフォント、複雑な表、重いグラフィック）はページ制限に達する前にコンテキストウィンドウを消費する場合がある。大きなファイルはセクションに分割するか、埋め込み画像をダウンサンプリングすることを推奨。
+
+PDF処理はClaudeのVision機能に依存するため、Visionと同じ制約が適用される。
+
+## 対応モデル・プラットフォーム
+
+全てのアクティブモデルがPDF処理をサポート。直接API、Google Vertex AI、Amazon Bedrockで利用可能。
+
+## PDFの送信方法
+
+PDFは3つの方法で送信できる。
+
+### 1. URL参照
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "url",
+                        "url": "https://example.com/document.pdf",
+                    },
+                },
+                {"type": "text", "text": "この文書の要点は何ですか？"},
+            ],
+        }
+    ],
+)
+print(message.content)
+```
+
+### 2. Base64エンコード
+
+```python
+import anthropic
+import base64
+import httpx
+
+pdf_url = "https://example.com/document.pdf"
+pdf_data = base64.standard_b64encode(httpx.get(pdf_url).content).decode("utf-8")
+
+client = anthropic.Anthropic()
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": pdf_data,
+                    },
+                },
+                {"type": "text", "text": "この文書の要点は何ですか？"},
+            ],
+        }
+    ],
+)
+print(message.content)
+```
+
+### 3. Files API
+
+繰り返し使うPDFや、エンコードのオーバーヘッドを避けたい場合に有効。
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# PDFをアップロード
+with open("document.pdf", "rb") as f:
+    file_upload = client.beta.files.upload(
+        file=("document.pdf", f, "application/pdf")
+    )
+
+# アップロードしたファイルをメッセージで使用
+message = client.beta.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    betas=["files-api-2025-04-14"],
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {"type": "file", "file_id": file_upload.id},
+                },
+                {"type": "text", "text": "この文書の要点は何ですか？"},
+            ],
+        }
+    ],
+)
+print(message.content)
+```
+
+## PDF処理の仕組み
+
+1. **ページ変換**: 各ページが画像に変換され、テキストも抽出される
+2. **分析**: Claudeがテキストと画像の両方を分析し、文書を理解する
+3. **応答**: テキスト・ビジュアル両方のコンテンツを参照して回答する
+
+## コスト見積もり
+
+PDFのトークン数は抽出テキスト量とページ数に依存する。
+
+- **テキストトークン**: ページあたり1,500〜3,000トークン（コンテンツ密度による）
+- **画像トークン**: 各ページが画像として処理されるため、画像ベースのコスト計算が適用される
+
+正確なコスト見積もりには[トークン計算API](/official-guide/token-counting)を使用できる。
+
+## パフォーマンス最適化
+
+### ベストプラクティス
+
+- PDFはテキストの前に配置する
+- 標準フォントを使用する
+- テキストが明瞭で読みやすいことを確認する
+- ページを正しい向きに回転させる
+- プロンプトではPDFビューアの論理ページ番号を使う
+- 大きなPDFはチャンクに分割する
+
+### Prompt Caching
+
+繰り返し分析する場合、`cache_control`を使ってPDFをキャッシュできる。
+
+```python
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": pdf_data,
+                    },
+                    "cache_control": {"type": "ephemeral"},
+                },
+                {"type": "text", "text": "この文書を分析してください。"},
+            ],
+        }
+    ],
+)
+```
+
+### バッチ処理
+
+大量のPDFを処理する場合、Message Batches APIを使用する。
+
+```python
+message_batch = client.messages.batches.create(
+    requests=[
+        {
+            "custom_id": "doc1",
+            "params": {
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1024,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "document",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "application/pdf",
+                                    "data": pdf_data,
+                                },
+                            },
+                            {"type": "text", "text": "この文書を要約してください。"},
+                        ],
+                    }
+                ],
+            },
+        }
+    ]
+)
+```

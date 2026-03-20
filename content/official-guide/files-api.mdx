@@ -1,0 +1,201 @@
+# Files API
+
+[Files](https://docs.anthropic.com/en/docs/build-with-claude/files)
+
+## 概要
+
+Files APIは、ファイルをアップロード・管理し、リクエストごとに再アップロードせずにClaude APIで利用できる機能。特にCode Executionツールとの連携（データセットやドキュメントの入力、チャートの出力）に便利。
+
+現在ベータ版であり、`anthropic-beta: files-api-2025-04-14` ヘッダーが必要。
+
+## 対応モデル
+
+`file_id`参照は、該当ファイルタイプをサポートする全モデルで利用可能。
+
+- **画像**: Claude 3以降の全モデル
+- **PDF**: Claude 3.5以降の全モデル
+- **その他のファイルタイプ**: Claude Haiku 4.5 + Claude 3.7以降
+
+Amazon BedrockおよびGoogle Vertex AIでは現在サポートされていない。
+
+## 基本的な使い方
+
+### ファイルのアップロード
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+uploaded = client.beta.files.upload(
+    file=("document.pdf", open("/path/to/document.pdf", "rb"), "application/pdf"),
+)
+print(uploaded.id)  # file_011CNha8iCJcU1wXNR6q4V8w
+```
+
+レスポンス例:
+
+```json
+{
+  "id": "file_011CNha8iCJcU1wXNR6q4V8w",
+  "type": "file",
+  "filename": "document.pdf",
+  "mime_type": "application/pdf",
+  "size_bytes": 1024000,
+  "created_at": "2025-01-01T00:00:00Z",
+  "downloadable": false
+}
+```
+
+### メッセージでの利用
+
+アップロード後は`file_id`で参照する。
+
+```python
+response = client.beta.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "この文書を要約してください。"},
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "file",
+                        "file_id": file_id,
+                    },
+                },
+            ],
+        }
+    ],
+    betas=["files-api-2025-04-14"],
+)
+print(response)
+```
+
+## ファイルタイプとコンテンツブロック
+
+| ファイルタイプ | MIMEタイプ | ブロック種別 | 用途 |
+|:---|:---|:---|:---|
+| PDF | `application/pdf` | `document` | テキスト分析、文書処理 |
+| プレーンテキスト | `text/plain` | `document` | テキスト分析 |
+| 画像 | `image/jpeg`, `image/png`, `image/gif`, `image/webp` | `image` | 画像分析 |
+| データセット等 | 各種 | `container_upload` | データ分析、可視化 |
+
+### ドキュメントブロック
+
+```json
+{
+  "type": "document",
+  "source": {
+    "type": "file",
+    "file_id": "file_011CNha8iCJcU1wXNR6q4V8w"
+  },
+  "title": "ドキュメントタイトル",
+  "context": "文書に関するコンテキスト",
+  "citations": { "enabled": true }
+}
+```
+
+### 画像ブロック
+
+```json
+{
+  "type": "image",
+  "source": {
+    "type": "file",
+    "file_id": "file_011CPMxVD3fHLUhvTqtsQA5w"
+  }
+}
+```
+
+## ファイル管理
+
+### 一覧取得
+
+```python
+files = client.beta.files.list()
+```
+
+### メタデータ取得
+
+```python
+file = client.beta.files.retrieve_metadata(file_id)
+```
+
+### 削除
+
+```python
+result = client.beta.files.delete(file_id)
+```
+
+### ダウンロード
+
+Code Executionツールやスキルが作成したファイルのみダウンロード可能（自分がアップロードしたファイルは不可）。
+
+```python
+file_content = client.beta.files.download(file_id)
+file_content.write_to_file("downloaded_file.txt")
+```
+
+## 他のファイル形式への対応
+
+`document`ブロックに対応していないファイル（.csv, .txt, .md, .docx, .xlsx）は、テキストに変換して直接メッセージに含める。
+
+```python
+import pandas as pd
+import anthropic
+
+client = anthropic.Anthropic()
+
+df = pd.read_csv("data.csv")
+csv_content = df.to_string()
+
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": f"CSVデータ:\n\n{csv_content}\n\nこのデータを分析してください。",
+                }
+            ],
+        }
+    ],
+)
+print(response.content[0].text)
+```
+
+## ストレージ制限
+
+| 項目 | 制限値 |
+|------|--------|
+| 最大ファイルサイズ | 500 MB/ファイル |
+| 総ストレージ | 500 GB/組織 |
+
+## ファイルのライフサイクル
+
+- ファイルはAPIキーのワークスペースにスコープされる
+- 同一ワークスペースの他のAPIキーからもアクセス可能
+- 削除するまで永続する
+- 削除は取り消し不可
+
+## 料金
+
+ファイル操作（アップロード、ダウンロード、一覧、メタデータ取得、削除）は全て**無料**。Messages APIでのファイル使用は入力トークンとして課金される。
+
+ベータ期間中のレート制限は約100リクエスト/分。
+
+## エラーハンドリング
+
+主なエラー:
+
+- **404**: ファイルが見つからない、またはアクセス権がない
+- **400**: ファイルタイプとコンテンツブロックの不一致、コンテキストウィンドウ超過、不正なファイル名
+- **413**: ファイルサイズ超過（500 MB上限）
+- **403**: ストレージ制限超過（500 GB上限）

@@ -1,0 +1,252 @@
+# Agent SDK
+
+[Agent SDK](https://docs.anthropic.com/en/agent-sdk/overview)
+
+## 概要
+
+Agent SDK（旧Claude Code SDK）は、Claude Codeと同じツール、エージェントループ、コンテキスト管理をプログラムから利用できるSDK。PythonとTypeScriptで利用可能。
+
+ファイルの読み書き、コマンド実行、Web検索、コード編集などを自律的に行うAIエージェントを構築できる。
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+
+async def main():
+    async for message in query(
+        prompt="auth.pyのバグを見つけて修正して",
+        options=ClaudeAgentOptions(allowed_tools=["Read", "Edit", "Bash"]),
+    ):
+        print(message)
+
+
+asyncio.run(main())
+```
+
+## セットアップ
+
+### インストール
+
+```bash
+# Python
+pip install claude-agent-sdk
+
+# TypeScript
+npm install @anthropic-ai/claude-agent-sdk
+```
+
+### APIキー設定
+
+```bash
+export ANTHROPIC_API_KEY=your-api-key
+```
+
+サードパーティプロバイダーも対応。
+
+- **Amazon Bedrock**: `CLAUDE_CODE_USE_BEDROCK=1` を設定
+- **Google Vertex AI**: `CLAUDE_CODE_USE_VERTEX=1` を設定
+- **Microsoft Azure**: `CLAUDE_CODE_USE_FOUNDRY=1` を設定
+
+### 最初のエージェント
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+
+async def main():
+    async for message in query(
+        prompt="このディレクトリにはどんなファイルがある？",
+        options=ClaudeAgentOptions(allowed_tools=["Bash", "Glob"]),
+    ):
+        if hasattr(message, "result"):
+            print(message.result)
+
+
+asyncio.run(main())
+```
+
+## 主要機能
+
+### 組み込みツール
+
+エージェントはすぐに使えるツールを備えている。
+
+| ツール | 機能 |
+|--------|------|
+| **Read** | ファイルの読み取り |
+| **Write** | ファイルの新規作成 |
+| **Edit** | 既存ファイルの編集 |
+| **Bash** | ターミナルコマンドの実行 |
+| **Glob** | パターンによるファイル検索 |
+| **Grep** | 正規表現によるファイル内容検索 |
+| **WebSearch** | Web検索 |
+| **WebFetch** | Webページ取得・解析 |
+| **AskUserQuestion** | ユーザーへの確認質問 |
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+
+async def main():
+    async for message in query(
+        prompt="TODOコメントを全て見つけてサマリーを作成して",
+        options=ClaudeAgentOptions(allowed_tools=["Read", "Glob", "Grep"]),
+    ):
+        if hasattr(message, "result"):
+            print(message.result)
+
+
+asyncio.run(main())
+```
+
+### フック
+
+エージェントのライフサイクルの各ポイントでカスタムコードを実行できる。`PreToolUse`、`PostToolUse`、`Stop`、`SessionStart`、`SessionEnd`等。
+
+```python
+import asyncio
+from datetime import datetime
+from claude_agent_sdk import query, ClaudeAgentOptions, HookMatcher
+
+
+async def log_file_change(input_data, tool_use_id, context):
+    file_path = input_data.get("tool_input", {}).get("file_path", "unknown")
+    with open("./audit.log", "a") as f:
+        f.write(f"{datetime.now()}: modified {file_path}\n")
+    return {}
+
+
+async def main():
+    async for message in query(
+        prompt="utils.pyをリファクタリングして可読性を改善して",
+        options=ClaudeAgentOptions(
+            permission_mode="acceptEdits",
+            hooks={
+                "PostToolUse": [
+                    HookMatcher(matcher="Edit|Write", hooks=[log_file_change])
+                ]
+            },
+        ),
+    ):
+        if hasattr(message, "result"):
+            print(message.result)
+
+
+asyncio.run(main())
+```
+
+### サブエージェント
+
+専門的なサブタスクを処理する子エージェントを生成できる。
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions, AgentDefinition
+
+
+async def main():
+    async for message in query(
+        prompt="code-reviewerエージェントでこのコードベースをレビューして",
+        options=ClaudeAgentOptions(
+            allowed_tools=["Read", "Glob", "Grep", "Agent"],
+            agents={
+                "code-reviewer": AgentDefinition(
+                    description="コード品質とセキュリティレビューの専門家",
+                    prompt="コード品質を分析し改善を提案する。",
+                    tools=["Read", "Glob", "Grep"],
+                )
+            },
+        ),
+    ):
+        if hasattr(message, "result"):
+            print(message.result)
+
+
+asyncio.run(main())
+```
+
+### MCP連携
+
+Model Context Protocolを通じて外部システム（データベース、ブラウザ、API等）と接続可能。
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+
+async def main():
+    async for message in query(
+        prompt="example.comを開いて見えるものを説明して",
+        options=ClaudeAgentOptions(
+            mcp_servers={
+                "playwright": {"command": "npx", "args": ["@playwright/mcp@latest"]}
+            }
+        ),
+    ):
+        if hasattr(message, "result"):
+            print(message.result)
+
+
+asyncio.run(main())
+```
+
+### セッション管理
+
+複数のやり取りにわたってコンテキストを維持できる。
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+
+async def main():
+    session_id = None
+
+    # 最初のクエリ: セッションIDを取得
+    async for message in query(
+        prompt="認証モジュールを読んで",
+        options=ClaudeAgentOptions(allowed_tools=["Read", "Glob"]),
+    ):
+        if hasattr(message, "subtype") and message.subtype == "init":
+            session_id = message.session_id
+
+    # セッションを再開（完全なコンテキスト付き）
+    async for message in query(
+        prompt="それを呼び出している箇所を全て見つけて",
+        options=ClaudeAgentOptions(resume=session_id),
+    ):
+        if hasattr(message, "result"):
+            print(message.result)
+
+
+asyncio.run(main())
+```
+
+## Client SDKとの違い
+
+Client SDKではツールループを自分で実装する必要があるが、Agent SDKではClaudeが自律的にツールを実行する。
+
+```python
+# Client SDK: ツールループを自分で実装
+response = client.messages.create(...)
+while response.stop_reason == "tool_use":
+    result = your_tool_executor(response.tool_use)
+    response = client.messages.create(tool_result=result, **params)
+
+# Agent SDK: Claudeが自律的にツールを処理
+async for message in query(prompt="auth.pyのバグを修正して"):
+    print(message)
+```
+
+## Claude Code CLIとの使い分け
+
+| ユースケース | 推奨 |
+|-------------|------|
+| インタラクティブ開発 | CLI |
+| CI/CDパイプライン | SDK |
+| カスタムアプリケーション | SDK |
+| 一回限りのタスク | CLI |
+| プロダクション自動化 | SDK |
