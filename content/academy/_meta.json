@@ -1,0 +1,16 @@
+{
+  "index": "Anthropic Academy",
+  "claude-101": "Claude 101",
+  "ai-fluency": "AI Fluency",
+  "api-course": "Building with API",
+  "claude-code-course": "Claude Code in Action",
+  "mcp-courses": "MCP コース",
+  "agent-skills-course": "Agent Skills",
+  "cloud-courses": "クラウド連携",
+  "---": {
+    "type": "separator"
+  },
+  "build-with-claude": "Build with Claude",
+  "claude-for-work": "Claude for Work",
+  "claude-for-you": "Claude for You"
+}

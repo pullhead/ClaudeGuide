@@ -1,0 +1,82 @@
+# Claude Codeの中級者になりたい人は集合してください
+
+[【入門記事】ClaudeCodeの中級者になりたい人は集合してください](https://qiita.com/K5K/items/72cc4282819ace823524)
+
+Claude Codeの設定ファイル・スコープ・Permission・MCPなどを体系的にまとめた中級者向け入門記事。
+「なるべくClaude Codeにやらせる」というマインドセットのもと、実践的な設定手法を解説。
+
+投稿者: @K5K (Qiita)
+
+---
+
+## マインドセット
+
+- なるべくClaude Codeにやらせる
+
+## 設定ファイルとスコープ
+
+- 設定は `.claude/` フォルダにまとまっている
+- 入門段階では **User** と **Project** の2つのスコープを押さえればOK
+- MCPはプロジェクトスコープに置くのがおすすめ
+
+```
+~/
+├── .claude/                     # Userスコープ（すべてのプロジェクトに適用）
+│   ├── settings.json            #   権限や動作に関する設定
+│   ├── CLAUDE.md                #   AIへの指示書（メモリ）
+│   ├── skills/                  #   カスタムSkills
+│   └── agents/                  #   カスタムサブエージェント
+│
+└── my-project/                  # Projectスコープ（このプロジェクトのみに適用）
+    ├── .claude/
+    │   ├── settings.json
+    │   ├── CLAUDE.md
+    │   ├── skills/
+    │   └── agents/
+    ├── CLAUDE.md                #   このCLAUDE.mdもプロジェクトのみに適用される
+    └── .mcp.json                #   プロジェクト内で利用するMCP
+```
+
+## Permission（権限）
+
+- bypassPermissionsモード：全てのpermissionをスキップ
+  - `claude --dangerously-skip-permissions`
+
+## /rewind（巻き戻し）
+
+- 直前の操作を取り消して以前の状態に戻すコマンド
+
+## Tool Search
+
+- 必要な機能のみ自動で読み込む仕組み
+- すべてのツールを常時ロードするのではなく、タスクに応じて必要なツールだけを動的に選択・読み込みする
+
+## claude-code-guide（サブエージェント）
+
+- Claude Code自身の機能・設定・使い方に関する質疑応答を行う専用サブエージェント
+- メインのコンテキストを消費せずに、Claude Codeについての質問に回答できる
+
+## Skills とサブエージェントの連携
+
+- Skillsはサブエージェントを活用してコンテキスト効率を高められる
+- サブエージェントに処理を委譲することで、メインコンテキストの消費を抑えつつ専門的な処理が可能
+
+## プラグイン
+
+- Skills・MCP・Hooks・サブエージェントなどを組み合わせたパッケージのこと
+- 複数の機能を一つにまとめて配布・再利用できる単位
+
+## 段階的開示とdescription評価ロジック
+
+- Skillやツールは段階的開示（progressive disclosure）の仕組みで読み込まれる
+- descriptionの評価ロジックを理解していれば、「なぜこのSkillが呼ばれないのか」「どう書けば意図通りに発火するか」といった判断ができるようになる
+
+## Status Line
+
+- Claude Codeの画面下部に表示される情報バー
+- カスタマイズ可能
+
+## Changelog
+
+- 公式のchangelogで最新の変更・追加機能を確認できる
+- https://code.claude.com/docs/en/changelog

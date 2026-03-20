@@ -1,0 +1,112 @@
+# クラウド連携コース
+
+[Claude with Amazon Bedrock](https://anthropic.skilljar.com/claude-in-amazon-bedrock) | [Claude with Google Cloud's Vertex AI](https://anthropic.skilljar.com/claude-with-google-vertex)
+
+## 概要
+
+Anthropic Academy では、主要クラウドプラットフォーム経由で Claude を利用するための2つのコースが提供されています。企業のセキュリティ要件やインフラ要件に合わせて、AWS または Google Cloud 経由で Claude を利用する方法を学べます。
+
+直接 Anthropic API を使う方法に加えて、既存のクラウドインフラに Claude を統合する選択肢があることは、エンタープライズ環境において非常に重要です。
+
+---
+
+## コース1: Claude with Amazon Bedrock
+
+[受講する](https://anthropic.skilljar.com/claude-in-amazon-bedrock)
+
+### Amazon Bedrock とは
+
+Amazon Bedrock は、AWS が提供するフルマネージドのファウンデーションモデルサービスです。Claude を含む複数の AI モデルに、単一の API でアクセスできます。
+
+### 学習内容
+
+#### セットアップと認証
+
+- AWS アカウントでの Bedrock サービスの有効化
+- Claude モデルへのアクセスリクエスト
+- IAM ロールとポリシーの設定
+- AWS SDK（Boto3 等）を使った API 呼び出し
+
+#### Bedrock 固有の機能
+
+- Bedrock Runtime API を使った Claude の呼び出し
+- Converse API によるモデル間での統一インターフェース
+- モデルバージョンの選択と管理
+- リージョン別の可用性
+
+#### エンタープライズ機能
+
+- VPC エンドポイントを使ったプライベートアクセス
+- CloudWatch によるモニタリングとログ
+- AWS のコンプライアンスフレームワークへの準拠
+- コスト管理と使用量モニタリング
+
+### Bedrock を選ぶ理由
+
+- 既存の AWS インフラとの統合が容易
+- AWS のセキュリティ・コンプライアンスの恩恵を受けられる
+- 他の AWS サービス（S3、Lambda、SageMaker 等）との連携
+- 従量課金でスケーラブル
+
+---
+
+## コース2: Claude with Google Cloud's Vertex AI
+
+[受講する](https://anthropic.skilljar.com/claude-with-google-vertex)
+
+### Vertex AI とは
+
+Vertex AI は、Google Cloud が提供する統合 ML プラットフォームです。Claude を含む外部モデルを、Google Cloud の環境内で利用できます。
+
+### 学習内容
+
+#### セットアップと認証
+
+- Google Cloud プロジェクトでの Vertex AI の有効化
+- Claude モデルへのアクセスリクエスト
+- サービスアカウントと認証情報の設定
+- Google Cloud SDK を使った API 呼び出し
+
+#### Vertex AI 固有の機能
+
+- Vertex AI の Claude エンドポイントの利用
+- リージョン選択とデプロイメント
+- バッチ予測の実行
+- モデルバージョンの管理
+
+#### エンタープライズ機能
+
+- VPC Service Controls によるセキュリティ
+- Cloud Logging / Monitoring による運用管理
+- Google Cloud のコンプライアンス認証の活用
+- 予算管理とクォータ設定
+
+### Vertex AI を選ぶ理由
+
+- 既存の Google Cloud インフラとの統合が容易
+- BigQuery、Cloud Storage 等の Google Cloud サービスとの連携
+- Google Workspace との統合可能性
+- Google Cloud のセキュリティモデルの活用
+
+---
+
+## どちらを選ぶべきか
+
+| 観点 | Amazon Bedrock | Google Vertex AI |
+|------|---------------|-----------------|
+| 既存インフラ | AWS を使っている場合 | GCP を使っている場合 |
+| 他サービス連携 | S3, Lambda, SageMaker | BigQuery, Cloud Storage |
+| 認証方式 | IAM ロール | サービスアカウント |
+| API スタイル | Converse API | Vertex AI エンドポイント |
+
+どちらのプラットフォームを選択しても、Claude の基本的な機能（Messages API のパラメータ、ツール利用、ストリーミング等）は同じです。既存のクラウドインフラに合わせて選択することをお勧めします。
+
+## 前提条件
+
+- 選択するクラウドプラットフォームのアカウント
+- API 開発の基礎知識
+- 基本的なクラウドサービスの理解
+
+## 受講方法
+
+各コースは [Anthropic Academy](https://anthropic.skilljar.com/) で無料で受講できます。修了時には修了証が発行されます。

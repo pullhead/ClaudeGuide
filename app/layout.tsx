@@ -11,6 +11,8 @@ const SECTION_ORDER = [
   'certified',
   'best-practice',
   'everything-claude-code',
+  'academy',
+  'articles',
   'pullhead',
 ]
 
@@ -18,8 +20,10 @@ const SECTION_TITLES: Record<string, string> = {
   'release-notes': 'Claude Code リリースノート',
   'official-guide': '公式ガイド',
   'certified': 'Claude Certified Associate (CCA)',
-  'best-practice': 'ベストプラクティス',
+  'best-practice': 'Claude Code Best Practice',
   'everything-claude-code': 'Everything Claude Code',
+  'academy': 'Anthropic Academy',
+  'articles': 'Articles',
   'pullhead': 'Pullhead',
 }
 

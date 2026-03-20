@@ -23,11 +23,19 @@
     "type": "page"
   },
   "best-practice": {
-    "title": "ベストプラクティス",
+    "title": "Claude Code Best Practice",
     "type": "page"
   },
   "everything-claude-code": {
     "title": "Everything Claude Code",
+    "type": "page"
+  },
+  "academy": {
+    "title": "Anthropic Academy",
+    "type": "page"
+  },
+  "articles": {
+    "title": "Articles",
     "type": "page"
   },
   "pullhead": {
