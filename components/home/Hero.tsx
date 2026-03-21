@@ -8,6 +8,11 @@ export function Hero() {
       className="cg-mesh-bg"
       style={{
         position: 'relative',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
         padding: '5rem 1.5rem 4rem',
         textAlign: 'center',
         overflow: 'hidden',
