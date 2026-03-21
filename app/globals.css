@@ -408,6 +408,53 @@ main {
     height: auto !important;
   }
 
+  /* Sidebar menu items: larger tap targets for mobile */
+  aside.nextra-sidebar li > a,
+  aside.nextra-sidebar li > button {
+    min-height: 44px !important;
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
+    font-size: 0.95rem !important;
+  }
+
+  /* Sidebar separator items */
+  aside.nextra-sidebar li {
+    margin-bottom: 2px !important;
+  }
+
+  /* Navbar search button: always visible on mobile bottom bar */
+  .nextra-navbar .nextra-search {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  /* Make search button look like an icon button in bottom nav */
+  .nextra-navbar .nextra-search button,
+  .nextra-navbar .nextra-search kbd {
+    font-size: 0 !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  /* Keep search icon visible */
+  .nextra-navbar .nextra-search button svg {
+    width: 20px !important;
+    height: 20px !important;
+    display: block !important;
+  }
+
+  /* Hide search shortcut hint text on mobile */
+  .nextra-navbar .nextra-search button span:not(:has(svg)),
+  .nextra-navbar .nextra-search kbd {
+    display: none !important;
+  }
+
   /* Hero section: reduce top padding on mobile since no top navbar */
   .cg-mesh-bg {
     padding-top: 2.5rem !important;
