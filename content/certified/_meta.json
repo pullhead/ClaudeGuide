@@ -10,5 +10,6 @@
   },
   "scenarios": "試験シナリオ",
   "antipatterns": "アンチパターン集",
-  "resources": "学習リソース"
+  "resources": "学習リソース",
+  "curriculum-12weeks": "12週間カリキュラム"
 }
